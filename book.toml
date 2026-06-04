@@ -1,0 +1,26 @@
+[book]
+title = "The JVM — A Gentle Deep Dive"
+authors = ["Brieuc Kaisin"]
+description = "For the curious developer who wants to understand the machine under the code"
+src = "docs"
+language = "en"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "ayu"
+git-repository-url = "https://github.com/brieuc-kaisin/jvm-book"
+edit-url-template = "https://github.com/brieuc-kaisin/jvm-book/edit/main/docs/{path}"
+site-url = "/"
+additional-css = ["theme/custom.css"]
+no-section-label = false
+
+[output.html.search]
+enable = true
+limit-results = 20
+
+[output.html.fold]
+enable = true
+level = 1

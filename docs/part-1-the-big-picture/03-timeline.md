@@ -1,6 +1,6 @@
 # Chapter 3 — A Timeline of the JVM
 
-[← Previous: From Source Code to Execution](02-from-source-to-execution.md) · [Next: Part II — JVM Architecture →](../part-2-jvm-architecture/README.md)
+[← Previous: From Source Code to Execution](02-from-source-to-execution.md) · [Next: Part II — JVM Architecture →](../part-2-jvm-architecture/index.md)
 
 ---
 
@@ -280,4 +280,4 @@ The relationship is symbiotic: **Scala pushes boundaries, Java mainstreams the b
 
 ---
 
-[← Previous: From Source Code to Execution](02-from-source-to-execution.md) · [Next: Part II — JVM Architecture →](../part-2-jvm-architecture/README.md)
+[← Previous: From Source Code to Execution](02-from-source-to-execution.md) · [Next: Part II — JVM Architecture →](../part-2-jvm-architecture/index.md)

@@ -9,4 +9,4 @@ Concurrency is where the JVM really shines — and where the most subtle bugs li
 | [17. java.util.concurrent — The Toolbox](17-juc-toolbox.md) | Executors, futures, locks, atomics                       |
 | [18. Virtual Threads (Project Loom)](18-virtual-threads.md) | Millions of threads, no sweat                            |
 
-[← Back to main index](../README.md) · [← Part IV](../part-4-type-system/README.md)
+[← Back to main index](../index.md) · [← Part IV](../part-4-type-system/index.md)

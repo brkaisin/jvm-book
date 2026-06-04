@@ -1,6 +1,6 @@
 # Chapter 15 — Threads on the JVM
 
-[← Part V](README.md) · [Next: The Java Memory Model →](16-java-memory-model.md)
+[← Part V](index.md) · [Next: The Java Memory Model →](16-java-memory-model.md)
 
 ---
 
@@ -309,4 +309,4 @@ In Scala/Cats Effect/ZIO, the library manages thread pools. You typically don't 
 
 ---
 
-[← Part V](README.md) · [Next: The Java Memory Model →](16-java-memory-model.md)
+[← Part V](index.md) · [Next: The Java Memory Model →](16-java-memory-model.md)

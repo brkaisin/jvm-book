@@ -1,6 +1,6 @@
 # Chapter 19 — JIT Compilation Deep Dive
 
-[← Part VI](README.md) · [Next: GraalVM →](20-graalvm.md)
+[← Part VI](index.md) · [Next: GraalVM →](20-graalvm.md)
 
 ---
 
@@ -270,4 +270,4 @@ But these are *suggestions* — the JIT makes the final decision.
 
 ---
 
-[← Part VI](README.md) · [Next: GraalVM →](20-graalvm.md)
+[← Part VI](index.md) · [Next: GraalVM →](20-graalvm.md)

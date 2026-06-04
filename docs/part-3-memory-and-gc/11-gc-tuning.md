@@ -1,6 +1,6 @@
 # Chapter 11 — Tuning the GC
 
-[← Previous: GC Tour](10-gc-tour.md) · [Next: Part IV — Type System →](../part-4-type-system/README.md)
+[← Previous: GC Tour](10-gc-tour.md) · [Next: Part IV — Type System →](../part-4-type-system/index.md)
 
 ---
 
@@ -302,4 +302,4 @@ A 4 MB object is being allocated. With G1's region size of 2 MB, anything > 1 MB
 
 ---
 
-[← Previous: GC Tour](10-gc-tour.md) · [Next: Part IV — Type System →](../part-4-type-system/README.md)
+[← Previous: GC Tour](10-gc-tour.md) · [Next: Part IV — Type System →](../part-4-type-system/index.md)

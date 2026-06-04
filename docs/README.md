@@ -8,7 +8,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 
 ## Table of Contents
 
-### [Part I — The Big Picture](part-1-the-big-picture/README.md)
+### [Part I — The Big Picture](part-1-the-big-picture/index.md)
 
 | #   | Chapter                                                                                | What you'll learn                                                   |
 | --- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -16,7 +16,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | 2   | [From Source Code to Execution](part-1-the-big-picture/02-from-source-to-execution.md) | The full journey: source → compiler → bytecode → JVM → machine code |
 | 3   | [A Timeline of the JVM](part-1-the-big-picture/03-timeline.md)                         | 30 years of evolution, and how Scala and Java influenced each other |
 
-### [Part II — JVM Architecture](part-2-jvm-architecture/README.md)
+### [Part II — JVM Architecture](part-2-jvm-architecture/index.md)
 
 | #   | Chapter                                                                                | What you'll learn                                   |
 | --- | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
@@ -25,7 +25,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | 6   | [Runtime Data Areas (Memory Layout)](part-2-jvm-architecture/06-runtime-data-areas.md) | Heap, stack, metaspace — where everything lives     |
 | 7   | [The Execution Engine](part-2-jvm-architecture/07-execution-engine.md)                 | Interpreter, JIT compiler, and how code gets fast   |
 
-### [Part III — Memory Management & Garbage Collection](part-3-memory-and-gc/README.md)
+### [Part III — Memory Management & Garbage Collection](part-3-memory-and-gc/index.md)
 
 | #   | Chapter                                                                       | What you'll learn                                |
 | --- | ----------------------------------------------------------------------------- | ------------------------------------------------ |
@@ -34,7 +34,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | 10  | [The Garbage Collectors — A Tour](part-3-memory-and-gc/10-gc-tour.md)         | Serial, Parallel, CMS, G1, ZGC, Shenandoah       |
 | 11  | [Tuning the GC](part-3-memory-and-gc/11-gc-tuning.md)                         | Practical flags, logs, and common pitfalls       |
 
-### [Part IV — The Type System at Runtime](part-4-type-system/README.md)
+### [Part IV — The Type System at Runtime](part-4-type-system/index.md)
 
 | #   | Chapter                                                                              | What you'll learn                                     |
 | --- | ------------------------------------------------------------------------------------ | ----------------------------------------------------- |
@@ -42,7 +42,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | 13  | [Inheritance and Method Dispatch](part-4-type-system/13-inheritance-and-dispatch.md) | Vtables, itables, and how trait methods actually work |
 | 14  | [Value Types and Project Valhalla](part-4-type-system/14-value-types-valhalla.md)    | The future: objects without overhead                  |
 
-### [Part V — Concurrency and Threading](part-5-concurrency/README.md)
+### [Part V — Concurrency and Threading](part-5-concurrency/index.md)
 
 | #   | Chapter                                                                    | What you'll learn                                        |
 | --- | -------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -51,7 +51,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | 17  | [java.util.concurrent — The Toolbox](part-5-concurrency/17-juc-toolbox.md) | Executors, futures, locks, atomics                       |
 | 18  | [Virtual Threads (Project Loom)](part-5-concurrency/18-virtual-threads.md) | Millions of threads, no sweat                            |
 
-### [Part VI — Performance, Monitoring, and Tooling](part-6-performance/README.md)
+### [Part VI — Performance, Monitoring, and Tooling](part-6-performance/index.md)
 
 | #   | Chapter                                                                      | What you'll learn                                       |
 | --- | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
@@ -60,7 +60,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | 21  | [Monitoring and Diagnostics](part-6-performance/21-monitoring.md)            | JFR, async-profiler, heap dumps, flame graphs           |
 | 22  | [Common Performance Pitfalls](part-6-performance/22-performance-pitfalls.md) | Autoboxing, megamorphic calls, and Scala-specific traps |
 
-### [Part VII — The JVM Ecosystem & Beyond](part-7-ecosystem/README.md)
+### [Part VII — The JVM Ecosystem & Beyond](part-7-ecosystem/index.md)
 
 | #   | Chapter                                                                  | What you'll learn                                    |
 | --- | ------------------------------------------------------------------------ | ---------------------------------------------------- |
@@ -69,7 +69,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | 25  | [The JVM Language Ecosystem](part-7-ecosystem/25-language-ecosystem.md)  | How Scala, Kotlin, Clojure, and others coexist       |
 | 26  | [What's Next for the JVM](part-7-ecosystem/26-whats-next.md)             | Valhalla, Leyden, Lilliput — the roadmap             |
 
-### [Appendices](appendices/README.md)
+### [Appendices](appendices/index.md)
 
 |     | Appendix                                                             | What's inside                            |
 | --- | -------------------------------------------------------------------- | ---------------------------------------- |

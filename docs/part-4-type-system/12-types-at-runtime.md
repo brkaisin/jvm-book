@@ -1,6 +1,6 @@
 # Chapter 12 — How the JVM Sees Types
 
-[← Part IV](README.md) · [Next: Inheritance and Dispatch →](13-inheritance-and-dispatch.md)
+[← Part IV](index.md) · [Next: Inheritance and Dispatch →](13-inheritance-and-dispatch.md)
 
 ---
 
@@ -279,4 +279,4 @@ Here's a reference for how Scala's type system compiles down:
 
 ---
 
-[← Part IV](README.md) · [Next: Inheritance and Dispatch →](13-inheritance-and-dispatch.md)
+[← Part IV](index.md) · [Next: Inheritance and Dispatch →](13-inheritance-and-dispatch.md)

@@ -9,4 +9,4 @@ The JVM is more than a runtime — it's a platform with a rich ecosystem of lang
 | [25. The JVM Language Ecosystem](25-language-ecosystem.md)  | How Scala, Kotlin, Clojure, and others coexist       |
 | [26. What's Next for the JVM](26-whats-next.md)             | Valhalla, Leyden, Lilliput — the roadmap             |
 
-[← Back to main index](../README.md) · [← Part VI](../part-6-performance/README.md)
+[← Back to main index](../index.md) · [← Part VI](../part-6-performance/index.md)

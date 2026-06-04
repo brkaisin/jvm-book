@@ -1,6 +1,6 @@
 # Chapter 7 — The Execution Engine
 
-[← Previous: Runtime Data Areas](06-runtime-data-areas.md) · [Next: Part III — Memory & GC →](../part-3-memory-and-gc/README.md)
+[← Previous: Runtime Data Areas](06-runtime-data-areas.md) · [Next: Part III — Memory & GC →](../part-3-memory-and-gc/index.md)
 
 ---
 
@@ -313,4 +313,4 @@ class MyBenchmark:
 
 ---
 
-[← Previous: Runtime Data Areas](06-runtime-data-areas.md) · [Next: Part III — Memory & GC →](../part-3-memory-and-gc/README.md)
+[← Previous: Runtime Data Areas](06-runtime-data-areas.md) · [Next: Part III — Memory & GC →](../part-3-memory-and-gc/index.md)

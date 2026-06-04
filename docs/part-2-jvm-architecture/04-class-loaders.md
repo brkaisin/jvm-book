@@ -1,6 +1,6 @@
 # Chapter 4 — The Class Loader Subsystem
 
-[← Part II](README.md) · [Next: Bytecode →](05-bytecode.md)
+[← Part II](index.md) · [Next: Bytecode →](05-bytecode.md)
 
 ---
 
@@ -236,4 +236,4 @@ Notice how `java.lang.Object` is loaded first (everything extends it), and your 
 
 ---
 
-[← Part II](README.md) · [Next: Bytecode →](05-bytecode.md)
+[← Part II](index.md) · [Next: Bytecode →](05-bytecode.md)

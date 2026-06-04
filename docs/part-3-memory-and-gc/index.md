@@ -9,4 +9,4 @@ Garbage collection is one of the JVM's greatest gifts — and one of its most mi
 | [10. The Garbage Collectors — A Tour](10-gc-tour.md)        | Serial, Parallel, CMS, G1, ZGC, Shenandoah       |
 | [11. Tuning the GC](11-gc-tuning.md)                        | Practical flags, logs, and common pitfalls       |
 
-[← Back to main index](../README.md) · [← Part II](../part-2-jvm-architecture/README.md)
+[← Back to main index](../index.md) · [← Part II](../part-2-jvm-architecture/index.md)

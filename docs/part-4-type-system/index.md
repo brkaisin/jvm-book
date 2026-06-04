@@ -8,4 +8,4 @@ Scala has one of the richest type systems in mainstream programming. But what ha
 | [13. Inheritance and Method Dispatch](13-inheritance-and-dispatch.md) | Vtables, itables, and how trait methods work         |
 | [14. Value Types and Project Valhalla](14-value-types-valhalla.md)    | The future: objects without overhead                 |
 
-[← Back to main index](../README.md) · [← Part III](../part-3-memory-and-gc/README.md)
+[← Back to main index](../index.md) · [← Part III](../part-3-memory-and-gc/index.md)

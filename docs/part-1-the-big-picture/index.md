@@ -8,4 +8,4 @@ Before diving into memory layouts and bytecode instructions, let's step back and
 | [2. From Source Code to Execution](02-from-source-to-execution.md) | The full journey your code takes              |
 | [3. A Timeline of the JVM](03-timeline.md)                         | 30 years of evolution                         |
 
-[← Back to main index](../README.md)
+[← Back to main index](../index.md)

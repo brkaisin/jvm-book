@@ -8,4 +8,4 @@ Quick references and cheat sheets to keep nearby.
 | [B. Bytecode Instruction Reference](b-bytecode-reference.md) | All bytecode categories at a glance |
 | [C. Glossary](c-glossary.md)                                 | JVM terminology in plain language   |
 
-[← Back to main index](../README.md)
+[← Back to main index](../index.md)

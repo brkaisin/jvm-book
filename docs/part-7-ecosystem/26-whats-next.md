@@ -1,6 +1,6 @@
 # Chapter 26 — What's Next for the JVM
 
-[← Previous: Language Ecosystem](25-language-ecosystem.md) · [Next: Appendices →](../appendices/README.md)
+[← Previous: Language Ecosystem](25-language-ecosystem.md) · [Next: Appendices →](../appendices/index.md)
 
 ---
 
@@ -175,4 +175,4 @@ The JVM is not standing still. It's evolving faster than at any point in its 30-
 
 ---
 
-[← Previous: Language Ecosystem](25-language-ecosystem.md) · [Next: Appendices →](../appendices/README.md)
+[← Previous: Language Ecosystem](25-language-ecosystem.md) · [Next: Appendices →](../appendices/index.md)

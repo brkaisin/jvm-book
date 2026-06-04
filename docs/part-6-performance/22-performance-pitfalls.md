@@ -1,6 +1,6 @@
 # Chapter 22 — Common Performance Pitfalls
 
-[← Previous: Monitoring](21-monitoring.md) · [Next: Part VII — Ecosystem →](../part-7-ecosystem/README.md)
+[← Previous: Monitoring](21-monitoring.md) · [Next: Part VII — Ecosystem →](../part-7-ecosystem/index.md)
 
 ---
 
@@ -374,4 +374,4 @@ JMH handles:
 
 ---
 
-[← Previous: Monitoring](21-monitoring.md) · [Next: Part VII — Ecosystem →](../part-7-ecosystem/README.md)
+[← Previous: Monitoring](21-monitoring.md) · [Next: Part VII — Ecosystem →](../part-7-ecosystem/index.md)

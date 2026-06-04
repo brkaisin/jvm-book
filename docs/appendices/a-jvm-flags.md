@@ -1,6 +1,6 @@
 # Appendix A — JVM Flags Cheat Sheet
 
-[← Appendices](README.md) · [Next: Bytecode Reference →](b-bytecode-reference.md)
+[← Appendices](index.md) · [Next: Bytecode Reference →](b-bytecode-reference.md)
 
 ---
 
@@ -229,4 +229,4 @@ java -XX:MaxRAMPercentage=75.0 \
 
 ---
 
-[← Appendices](README.md) · [Next: Bytecode Reference →](b-bytecode-reference.md)
+[← Appendices](index.md) · [Next: Bytecode Reference →](b-bytecode-reference.md)

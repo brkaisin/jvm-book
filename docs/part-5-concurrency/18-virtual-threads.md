@@ -1,6 +1,6 @@
 # Chapter 18 — Virtual Threads (Project Loom)
 
-[← Previous: java.util.concurrent](17-juc-toolbox.md) · [Next: Part VI — Performance →](../part-6-performance/README.md)
+[← Previous: java.util.concurrent](17-juc-toolbox.md) · [Next: Part VI — Performance →](../part-6-performance/index.md)
 
 ---
 
@@ -242,4 +242,4 @@ java -Djdk.tracePinnedThreads=short ...
 
 ---
 
-[← Previous: java.util.concurrent](17-juc-toolbox.md) · [Next: Part VI — Performance →](../part-6-performance/README.md)
+[← Previous: java.util.concurrent](17-juc-toolbox.md) · [Next: Part VI — Performance →](../part-6-performance/index.md)

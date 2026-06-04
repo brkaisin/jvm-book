@@ -1,6 +1,6 @@
 # Chapter 8 — Object Layout in Memory
 
-[← Part III](README.md) · [Next: GC Fundamentals →](09-gc-fundamentals.md)
+[← Part III](index.md) · [Next: GC Fundamentals →](09-gc-fundamentals.md)
 
 ---
 
@@ -244,4 +244,4 @@ This would save 4 bytes per object. For an application with millions of small ob
 
 ---
 
-[← Part III](README.md) · [Next: GC Fundamentals →](09-gc-fundamentals.md)
+[← Part III](index.md) · [Next: GC Fundamentals →](09-gc-fundamentals.md)

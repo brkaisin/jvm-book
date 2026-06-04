@@ -1,6 +1,6 @@
 # Chapter 1 — Why the JVM Exists
 
-[← Part I](README.md) · [Next: From Source Code to Execution →](02-from-source-to-execution.md)
+[← Part I](index.md) · [Next: From Source Code to Execution →](02-from-source-to-execution.md)
 
 ---
 
@@ -133,4 +133,4 @@ Understanding the JVM doesn't make you a "Java developer." It makes you a develo
 
 ---
 
-[← Part I](README.md) · [Next: From Source Code to Execution →](02-from-source-to-execution.md)
+[← Part I](index.md) · [Next: From Source Code to Execution →](02-from-source-to-execution.md)

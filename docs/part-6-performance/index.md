@@ -9,4 +9,4 @@ Knowing how the JVM works is one thing. Diagnosing and optimizing a live applica
 | [21. Monitoring and Diagnostics](21-monitoring.md)            | JFR, async-profiler, heap dumps, flame graphs           |
 | [22. Common Performance Pitfalls](22-performance-pitfalls.md) | Autoboxing, megamorphic calls, and Scala-specific traps |
 
-[← Back to main index](../README.md) · [← Part V](../part-5-concurrency/README.md)
+[← Back to main index](../index.md) · [← Part V](../part-5-concurrency/index.md)

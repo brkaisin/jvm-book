@@ -1,6 +1,6 @@
 # Chapter 23 — The Module System (JPMS)
 
-[← Part VII](README.md) · [Next: Native Interop →](24-native-interop.md)
+[← Part VII](index.md) · [Next: Native Interop →](24-native-interop.md)
 
 ---
 
@@ -150,4 +150,4 @@ javaOptions ++= Seq(
 
 ---
 
-[← Part VII](README.md) · [Next: Native Interop →](24-native-interop.md)
+[← Part VII](index.md) · [Next: Native Interop →](24-native-interop.md)

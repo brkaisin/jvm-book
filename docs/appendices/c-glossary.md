@@ -1,6 +1,6 @@
 # Appendix C — Glossary
 
-[← Previous: Bytecode Reference](b-bytecode-reference.md) · [← Back to main index](../README.md)
+[← Previous: Bytecode Reference](b-bytecode-reference.md) · [← Back to main index](../index.md)
 
 ---
 
@@ -187,4 +187,4 @@ A per-class set of lookup tables for interface method dispatch. Used by `invokei
 
 ---
 
-[← Previous: Bytecode Reference](b-bytecode-reference.md) · [← Back to main index](../README.md)
+[← Previous: Bytecode Reference](b-bytecode-reference.md) · [← Back to main index](../index.md)

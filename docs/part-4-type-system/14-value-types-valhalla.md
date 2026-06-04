@@ -1,6 +1,6 @@
 # Chapter 14 — Value Types and Project Valhalla
 
-[← Previous: Inheritance and Dispatch](13-inheritance-and-dispatch.md) · [Next: Part V — Concurrency →](../part-5-concurrency/README.md)
+[← Previous: Inheritance and Dispatch](13-inheritance-and-dispatch.md) · [Next: Part V — Concurrency →](../part-5-concurrency/index.md)
 
 ---
 
@@ -252,4 +252,4 @@ However, Scala will need compiler changes to take advantage of these JVM feature
 
 ---
 
-[← Previous: Inheritance and Dispatch](13-inheritance-and-dispatch.md) · [Next: Part V — Concurrency →](../part-5-concurrency/README.md)
+[← Previous: Inheritance and Dispatch](13-inheritance-and-dispatch.md) · [Next: Part V — Concurrency →](../part-5-concurrency/index.md)

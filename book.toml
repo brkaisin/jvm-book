@@ -11,8 +11,8 @@ build-dir = "book"
 [output.html]
 default-theme = "light"
 preferred-dark-theme = "ayu"
-git-repository-url = "https://github.com/brieuc-kaisin/jvm-book"
-edit-url-template = "https://github.com/brieuc-kaisin/jvm-book/edit/main/docs/{path}"
+git-repository-url = "https://github.com/brkaisin/jvm-book"
+edit-url-template = "https://github.com/brkaisin/jvm-book/edit/master/docs/{path}"
 site-url = "/"
 additional-css = ["theme/custom.css"]
 no-section-label = false

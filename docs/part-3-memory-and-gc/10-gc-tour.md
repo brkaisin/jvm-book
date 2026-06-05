@@ -50,7 +50,7 @@ How it works:
 - All collections are still stop-the-world — but they finish faster because multiple threads do the work
 
 ```
-Application:  ────────────┤  STW  ├────────────────┤  STW  ├────────
+Application:  ────────────┤  STW ├─────────────────┤  STW  ├────────
 GC threads:               │ ████ │                 │ ████  │
                           │ ████ │                 │ ████  │
                           │ ████ │                 │ ████  │

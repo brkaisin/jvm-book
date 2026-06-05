@@ -21,20 +21,20 @@ Here's the big picture:
 │  │  │    YOUNG     │  │       OLD        │  │  │ Class metadata  │  │
 │  │  │  GENERATION  │  │   GENERATION     │  │  │ Method bytecode │  │
 │  │  │              │  │                  │  │  │ Constant pools  │  │
-│  │  │ ┌────┐┌────┐│  │                  │  │  │ Field/method    │  │
-│  │  │ │Eden││Surv││  │ Long-lived       │  │  │   descriptors   │  │
-│  │  │ │    ││ivor││  │ objects           │  │  │                 │  │
-│  │  │ └────┘└────┘│  │                  │  │  │                 │  │
+│  │  │ ┌────┐┌────┐ │  │                  │  │  │ Field/method    │  │
+│  │  │ │Eden││Surv│ │  │ Long-lived       │  │  │   descriptors   │  │
+│  │  │ │    ││ivor│ │  │ objects          │  │  │                 │  │
+│  │  │ └────┘└────┘ │  │                  │  │  │                 │  │
 │  │  └──────────────┘  └──────────────────┘  │  └─────────────────┘  │
 │  └──────────────────────────────────────────┘                       │
 │                                                                     │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐   ┌───────────────┐  │
-│  │  Thread 1  │ │  Thread 2  │ │  Thread 3  │   │  Native       │  │
-│  │ ┌────────┐ │ │ ┌────────┐ │ │ ┌────────┐ │   │  Method       │  │
-│  │ │  Stack │ │ │ │  Stack │ │ │ │  Stack │ │   │  Stacks       │  │
-│  │ ├────────┤ │ │ ├────────┤ │ │ ├────────┤ │   │               │  │
-│  │ │  PC    │ │ │ │  PC    │ │ │ │  PC    │ │   │  (JNI calls)  │  │
-│  │ └────────┘ │ │ └────────┘ │ │ └────────┘ │   └───────────────┘  │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐   ┌───────────────┐   │
+│  │  Thread 1  │ │  Thread 2  │ │  Thread 3  │   │  Native       │   │
+│  │ ┌────────┐ │ │ ┌────────┐ │ │ ┌────────┐ │   │  Method       │   │
+│  │ │  Stack │ │ │ │  Stack │ │ │ │  Stack │ │   │  Stacks       │   │
+│  │ ├────────┤ │ │ ├────────┤ │ │ ├────────┤ │   │               │   │
+│  │ │  PC    │ │ │ │  PC    │ │ │ │  PC    │ │   │  (JNI calls)  │   │
+│  │ └────────┘ │ │ └────────┘ │ │ └────────┘ │   └───────────────┘   │
 │  └────────────┘ └────────────┘ └────────────┘                       │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -160,23 +160,23 @@ Thread 1's Stack:
 ┌──────────────────────────┐
 │  Frame: main()           │  ← Currently executing
 │  ┌─────────────────────┐ │
-│  │ Local variables      │ │  args, local vars
-│  │ Operand stack        │ │  Temp values for computation
-│  │ Return address       │ │  Where to go when this method returns
+│  │ Local variables     │ │  args, local vars
+│  │ Operand stack       │ │  Temp values for computation
+│  │ Return address      │ │  Where to go when this method returns
 │  └─────────────────────┘ │
 ├──────────────────────────┤
 │  Frame: processData()    │  ← Called by main()
 │  ┌─────────────────────┐ │
-│  │ Local variables      │ │
-│  │ Operand stack        │ │
-│  │ Return address       │ │
+│  │ Local variables     │ │
+│  │ Operand stack       │ │
+│  │ Return address      │ │
 │  └─────────────────────┘ │
 ├──────────────────────────┤
 │  Frame: calculate()      │  ← Called by processData()
 │  ┌─────────────────────┐ │
-│  │ Local variables      │ │
-│  │ Operand stack        │ │
-│  │ Return address       │ │
+│  │ Local variables     │ │
+│  │ Operand stack       │ │
+│  │ Return address      │ │
 │  └─────────────────────┘ │
 └──────────────────────────┘
 ```

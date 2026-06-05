@@ -184,12 +184,12 @@ ZGC uses a technique called **colored pointers** — it stores GC metadata direc
 ```
 Standard 64-bit pointer:
 ┌──────────────────────────────────────────────────────────┐
-│                    Object address (44 bits)                │
+│                    Object address (44 bits)              │
 └──────────────────────────────────────────────────────────┘
 
 ZGC colored pointer:
 ┌────┬────┬────┬────┬──────────────────────────────────────┐
-│Fin │Rmp │Mrk1│Mrk0│         Object address (42 bits)      │
+│Fin │Rmp │Mrk1│Mrk0│         Object address (42 bits)     │
 └────┴────┴────┴────┴──────────────────────────────────────┘
   GC metadata bits
 ```
@@ -244,7 +244,7 @@ After reloc:   Old location [Brooks ptr ──▶ new location] → [data at new
 
 ```
                     ┌─────────────────────┐
-                    │  What matters most?  │
+                    │  What matters most? │
                     └──────────┬──────────┘
                                │
               ┌────────────────┼────────────────┐

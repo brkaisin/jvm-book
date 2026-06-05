@@ -111,7 +111,7 @@ Before:
 
 After compaction:
 ┌───┐ ┌───┐ ┌───┐ ┌                         ┐
-│ A │ │ C │ │ D │ │       Free space         │
+│ A │ │ C │ │ D │ │       Free space        │
 └───┘ └───┘ └───┘ └                         ┘
 ```
 
@@ -126,8 +126,8 @@ Instead of compacting in place, divide memory into two halves ("from-space" and 
 ```
 From-space:                      To-space:
 ┌───┐ ┌   ┐ ┌───┐ ┌   ┐         ┌                              ┐
-│ A │ │   │ │ C │ │   │  ──▶    │ A │ C │     Free space         │
-└───┘ └   ┘ └───┘ └   ┘         └───┘───┘                       ┘
+│ A │ │   │ │ C │ │   │  ──▶    │ A │ C │     Free space       │
+└───┘ └   ┘ └───┘ └   ┘         └───┘───┘                      ┘
                                  (compacted, no fragmentation)
 
 Then swap: to-space becomes from-space for next cycle.

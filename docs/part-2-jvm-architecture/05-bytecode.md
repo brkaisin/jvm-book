@@ -282,7 +282,7 @@ This single line generates bytecode for:
 javap -p Point.class
 ```
 
-```
+```java
 public class Point implements scala.Product,java.io.Serializable {
   private final int x;
   private final int y;

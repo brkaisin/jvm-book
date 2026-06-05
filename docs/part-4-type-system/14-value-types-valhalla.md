@@ -20,13 +20,13 @@ And when you store these in an array:
 
 ```
 Array[Point] in JVM:
-┌──────────┐    ┌────────┐    ┌────────┐
+┌──────────┐   ┌────────┐    ┌────────┐
 │ ref[0] ──┼──▶│ Header │    │ Header │
 │ ref[1] ──┼───┤ x = 1  │    │ x = 3  │
 │ ref[2] ──┼─┐ │ y = 2  │    │ y = 4  │
 └──────────┘ │ └────────┘    └────────┘
              │    ┌────────┐
-             └──▶│ Header │
+             └──▶ │ Header │
                   │ x = 5  │
                   │ y = 6  │
                   └────────┘
@@ -112,14 +112,14 @@ A `Point` value would be:
 ```
 Array<Point> with Valhalla:
 ┌────┬────┬────┬────┬────┬────┐
-│x=1 │y=2 │x=3 │y=4 │x=5 │y=6│    ← Flat, contiguous, no headers
+│x=1 │y=2 │x=3 │y=4 │x=5 │y=6 │    ← Flat, contiguous, no headers
 └────┴────┴────┴────┴────┴────┘
 
 vs. today:
 ┌──────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
 │ref[0]│→ │header│x=1│y=2│  │header│x=3│y=4│  │header│x=5│y=6│
-│ref[1]│→                │                  │
-│ref[2]│→                                   │
+│ref[1]│→                │                 │
+│ref[2]│→                                  │
 └──────┘
 ```
 

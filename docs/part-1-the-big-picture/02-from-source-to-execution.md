@@ -13,9 +13,9 @@ Every time you run a Scala or Java program, your source code goes through a rema
         │
         ▼
   ┌─────────────┐
-  │  Compiler    │   scalac / javac
-  │  (compile    │
-  │   time)      │
+  │  Compiler   │   scalac / javac
+  │  (compile   │
+  │   time)     │
   └─────┬───────┘
         │
         ▼
@@ -34,9 +34,9 @@ Every time you run a Scala or Java program, your source code goes through a rema
   │              │ Execution Engine  │  │
   │              │                   │  │
   │              │  Interpreter      │  │
-  │              │       +          │  │
-  │              │  JIT Compiler    │  │
-  │              └──────────────────┘  │
+  │              │       +           │  │
+  │              │  JIT Compiler     │  │
+  │              └───────────────────┘  │
   └─────────────────────────────────────┘
         │
         ▼

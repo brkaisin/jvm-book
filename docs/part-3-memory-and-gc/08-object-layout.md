@@ -12,21 +12,21 @@ Every object in the JVM has this structure:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                    OBJECT HEADER                      │
+│                    OBJECT HEADER                     │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
-│  │  Mark Word   │  │ Class Pointer│  │Array Length │  │
-│  │  (8 bytes)   │  │ (4 or 8 b)  │  │(4 b, arrays│  │
-│  │              │  │              │  │ only)       │  │
+│  │  Mark Word   │  │ Class Pointer│  │Array Length│  │
+│  │  (8 bytes)   │  │ (4 or 8 b)   │  │(4 b, arrays│  │
+│  │              │  │              │  │ only)      │  │
 │  └──────────────┘  └──────────────┘  └────────────┘  │
 ├──────────────────────────────────────────────────────┤
-│                   INSTANCE DATA                       │
+│                   INSTANCE DATA                      │
 │  Field 1 (e.g., int x = 3)                           │
 │  Field 2 (e.g., int y = 4)                           │
-│  Field 3 (e.g., String name → reference)              │
-│  ...                                                  │
+│  Field 3 (e.g., String name → reference)             │
+│  ...                                                 │
 ├──────────────────────────────────────────────────────┤
-│                    PADDING                             │
-│  (0–7 bytes to align to 8-byte boundary)              │
+│                    PADDING                           │
+│  (0–7 bytes to align to 8-byte boundary)             │
 └──────────────────────────────────────────────────────┘
 ```
 

@@ -18,9 +18,9 @@ When a class is loaded, it goes through five phases:
 
 ```
   ┌──────────┐     ┌──────────────────────────────────┐     ┌────────────────┐
-  │          │     │           LINKING                 │     │                │
+  │          │     │           LINKING                │     │                │
   │ LOADING  │────▶│ Verification → Preparation →     │────▶│ INITIALIZATION │
-  │          │     │                  Resolution       │     │                │
+  │          │     │                  Resolution      │     │                │
   └──────────┘     └──────────────────────────────────┘     └────────────────┘
 ```
 
@@ -83,18 +83,18 @@ The JVM has a hierarchy of class loaders, each responsible for loading different
 
 ```
 ┌─────────────────────────┐
-│   Bootstrap ClassLoader  │  ← Loads core Java classes (java.lang.*, java.util.*, etc.)
-│   (written in C/C++)     │     From: JDK's internal modules
+│   Bootstrap ClassLoader │  ← Loads core Java classes (java.lang.*, java.util.*, etc.)
+│   (written in C/C++)    │     From: JDK's internal modules
 └───────────┬─────────────┘
             │ parent
 ┌───────────▼─────────────┐
-│   Platform ClassLoader   │  ← Loads platform/extension classes
-│   (was "Extension")      │     From: JDK's platform modules
+│   Platform ClassLoader  │  ← Loads platform/extension classes
+│   (was "Extension")     │     From: JDK's platform modules
 └───────────┬─────────────┘
             │ parent
 ┌───────────▼─────────────┐
-│  Application ClassLoader │  ← Loads YOUR classes
-│   (aka "System")         │     From: classpath (-cp), module path
+│  Application ClassLoader│  ← Loads YOUR classes
+│   (aka "System")        │     From: classpath (-cp), module path
 └─────────────────────────┘
 ```
 

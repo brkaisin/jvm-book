@@ -1,10 +1,6 @@
 # Appendix B — Bytecode Instruction Reference
 
-[← Previous: JVM Flags](a-jvm-flags.md) · [Next: Glossary →](c-glossary.md)
-
----
-
-JVM bytecode has about 200 instructions. Here they are, grouped by category. Each instruction is one byte (the "opcode"), optionally followed by operands.
+JVM bytecode has a little over 200 instructions (opcodes 0 to 201, plus a few reserved ones). Here they are, grouped by category. Each instruction starts with a one-byte **opcode**, optionally followed by operands. To see the bytecode of any class, run `javap -c -p MyClass.class`.
 
 ## Stack Manipulation
 
@@ -29,9 +25,9 @@ JVM bytecode has about 200 instructions. Here they are, grouped by category. Eac
 | `dconst_0`, `dconst_1`             | Push double 0 or 1                                  |
 | `bipush <byte>`                    | Push byte as int                                    |
 | `sipush <short>`                   | Push short as int                                   |
-| `ldc <index>`                      | Push constant from pool (int, float, String, Class) |
+| `ldc <index>`                      | Push constant from pool (int, float, String, Class, MethodType, MethodHandle, dynamic constant) |
 | `ldc_w <index>`                    | Wide index version of ldc                           |
-| `ldc2_w <index>`                   | Push long or double from constant pool              |
+| `ldc2_w <index>`                   | Push long or double from constant pool (incl. dynamic constants) |
 | `aconst_null`                      | Push null reference                                 |
 
 ## Local Variable Access
@@ -126,11 +122,11 @@ Same pattern with `l`, `f`, `d` prefix: `ladd`, `fadd`, `dadd`, etc.
 
 | Opcode                                                | Use case                                              |
 | ----------------------------------------------------- | ----------------------------------------------------- |
-| `invokevirtual`                                       | Instance methods (virtual dispatch via vtable)        |
+| `invokevirtual`                                       | Instance methods (virtual dispatch via vtable); also private methods since Java 11 (nestmates) |
 | `invokeinterface`                                     | Interface methods (dispatch via itable)               |
-| `invokespecial`                                       | Constructors, `super` calls, private methods          |
+| `invokespecial`                                       | Constructors (`<init>`), `super.m()` calls            |
 | `invokestatic`                                        | Static methods                                        |
-| `invokedynamic`                                       | Bootstrap-linked calls (lambdas, string concat, etc.) |
+| `invokedynamic`                                       | Bootstrap-linked calls (lambdas, string concat, records' `toString`/`equals`/`hashCode`, pattern `switch`) |
 | `return`                                              | Return void                                           |
 | `ireturn`, `lreturn`, `freturn`, `dreturn`, `areturn` | Return typed value                                    |
 
@@ -179,6 +175,11 @@ Same pattern with `l`, `f`, `d` prefix: `ladd`, `fadd`, `dadd`, etc.
 | `tableswitch`     | Switch with consecutive keys (jump table)  |
 | `lookupswitch`    | Switch with arbitrary keys (binary search) |
 
+`jsr` and `ret` (old subroutines used for `finally`) are forbidden in class files for Java 7+ (version 51+); `javac` duplicates `finally` blocks instead.
+
+> [!NOTE]
+> With Valhalla's value objects (preview in JDK 28), `if_acmpeq`/`if_acmpne` on two value objects compare their class and field values, since value objects have no identity. That's what makes `==` on value objects mean "same value".
+
 ## Exception Handling
 
 | Opcode            | Description                                                       |
@@ -186,7 +187,7 @@ Same pattern with `l`, `f`, `d` prefix: `ladd`, `fadd`, `dadd`, etc.
 | `athrow`          | Throw exception                                                   |
 | (exception table) | Not an opcode — try/catch is encoded as a table in the class file |
 
-```
+```text
 Exception table:
   from   to  target type
     0     8    11   Class java/lang/Exception
@@ -201,7 +202,36 @@ This means: "If an exception of type `Exception` is thrown between bytecodes 0 a
 | `monitorenter` | Acquire monitor (lock) on object   |
 | `monitorexit`  | Release monitor (unlock) on object |
 
-`synchronized` blocks compile to `monitorenter` / `monitorexit` pairs. `synchronized` methods are flagged in the method's access flags instead.
+`synchronized` blocks compile to `monitorenter` / `monitorexit` pairs (plus an exception handler that releases the lock). `synchronized` methods use the `ACC_SYNCHRONIZED` access flag instead.
+
+## Miscellaneous
+
+| Opcode   | Description                                                                         |
+| -------- | ----------------------------------------------------------------------------------- |
+| `wide`   | Prefix: the next load/store/`iinc` uses a 16-bit local-variable index (or constant) |
+| `breakpoint`, `impdep1`, `impdep2` | Reserved for debuggers and JVM internals; never in class files |
+
+## Class File Versions
+
+Every `.class` file starts with `CAFEBABE` followed by a minor and major version. A JVM refuses to load a class whose major version is newer than it supports (`UnsupportedClassVersionError`). Classes compiled with `--enable-preview` also have minor version `65535` and only run on that exact release with `--enable-preview`.
+
+| Java | Major | Java | Major | Java | Major |
+| ---- | ----- | ---- | ----- | ---- | ----- |
+| 1.1  | 45    | 11   | 55    | 20   | 64    |
+| 1.2  | 46    | 12   | 56    | 21   | 65    |
+| 1.3  | 47    | 13   | 57    | 22   | 66    |
+| 1.4  | 48    | 14   | 58    | 23   | 67    |
+| 5    | 49    | 15   | 59    | 24   | 68    |
+| 6    | 50    | 16   | 60    | 25   | 69    |
+| 7    | 51    | 17   | 61    | 26   | 70    |
+| 8    | 52    | 18   | 62    | 27   | 71    |
+| 9    | 53    | 19   | 63    | 28   | 72    |
+| 10   | 54    |      |       |      |       |
+
+The rule of thumb: **major = Java version + 44**. Check a class with `javap -v MyClass.class | grep major`. Scala 3.8+ targets Java 17 (major 61) at minimum.
+
+> [!TIP]
+> To read or generate class files from code, use the **Class-File API** (`java.lang.classfile`, final in Java 24) instead of ASM: it is part of the JDK and always supports the latest class file version.
 
 ## Example: Putting It All Together
 
@@ -210,7 +240,7 @@ def add(a: Int, b: Int): Int = a + b
 ```
 
 Compiles to:
-```
+```text
   0: iload_1       // Push 'a' from slot 1
   1: iload_2       // Push 'b' from slot 2
   2: iadd          // Pop both, push sum
@@ -221,13 +251,15 @@ Compiles to:
 def greet(name: String): String = s"Hello, $name!"
 ```
 
-Compiles to (simplified):
-```
-  0: aload_1                            // Push 'name'
-  1: invokedynamic makeConcatWithConstants  // String template via bootstrap
-  6: areturn                            // Return the String
+Compiles to (Scala 3.9, as shown by `javap -c`):
+```text
+  0: aload_1                                   // Push 'name'
+  1: invokedynamic makeConcatWithConstants     // String concatenation via a bootstrap method
+  6: areturn                                   // Return the String
 ```
 
----
+```scala
+lazy val config: String = loadConfig()
+```
 
-[← Previous: JVM Flags](a-jvm-flags.md) · [Next: Glossary →](c-glossary.md)
+Since Scala 3.8, the lazy val's state lives in a `volatile` field updated through a static `VarHandle` (the class initializer calls `MethodHandles.lookup().findVarHandle(...)`), and the initializing thread claims it with `VarHandle.compareAndSet` instead of `sun.misc.Unsafe`.

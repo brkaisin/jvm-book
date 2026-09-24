@@ -4,7 +4,8 @@
 
 This book explains the Java Virtual Machine from the ground up — in plain language, with real examples in Java and Scala, and without cutting corners on the concepts. Whether you're a Scala developer who wants to know what happens after `scalac`, or a Java developer curious about the runtime, this is for you.
 
----
+> [!NOTE]
+> Up to date with **JDK 27** (September 2026), with **JDK 25** as the current LTS, and a look at what's coming in JDK 28 (Valhalla's value objects, AOT code compilation). Scala examples target Scala 3.
 
 ## Table of Contents
 
@@ -14,7 +15,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | --- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | 1   | [Why the JVM Exists](part-1-the-big-picture/01-why-the-jvm-exists.md)                  | The problem it solved, the platform it became                       |
 | 2   | [From Source Code to Execution](part-1-the-big-picture/02-from-source-to-execution.md) | The full journey: source → compiler → bytecode → JVM → machine code |
-| 3   | [A Timeline of the JVM](part-1-the-big-picture/03-timeline.md)                         | 30 years of evolution, and how Scala and Java influenced each other |
+| 3   | [A Timeline of the JVM](part-1-the-big-picture/03-timeline.md)                         | 30 years of evolution up to Java 27, and how Scala and Java influenced each other |
 
 ### [Part II — JVM Architecture](part-2-jvm-architecture/index.md)
 
@@ -31,7 +32,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | --- | ----------------------------------------------------------------------------- | ------------------------------------------------ |
 | 8   | [Object Layout in Memory](part-3-memory-and-gc/08-object-layout.md)           | What an object actually looks like in RAM        |
 | 9   | [Garbage Collection Fundamentals](part-3-memory-and-gc/09-gc-fundamentals.md) | Mark, sweep, compact, copy — the core algorithms |
-| 10  | [The Garbage Collectors — A Tour](part-3-memory-and-gc/10-gc-tour.md)         | Serial, Parallel, CMS, G1, ZGC, Shenandoah       |
+| 10  | [The Garbage Collectors — A Tour](part-3-memory-and-gc/10-gc-tour.md)         | Serial, Parallel, G1, ZGC, Shenandoah (and the late CMS) |
 | 11  | [Tuning the GC](part-3-memory-and-gc/11-gc-tuning.md)                         | Practical flags, logs, and common pitfalls       |
 
 ### [Part IV — The Type System at Runtime](part-4-type-system/index.md)
@@ -40,7 +41,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | --- | ------------------------------------------------------------------------------------ | ----------------------------------------------------- |
 | 12  | [How the JVM Sees Types](part-4-type-system/12-types-at-runtime.md)                  | Primitives, erasure, and the reality behind generics  |
 | 13  | [Inheritance and Method Dispatch](part-4-type-system/13-inheritance-and-dispatch.md) | Vtables, itables, and how trait methods actually work |
-| 14  | [Value Types and Project Valhalla](part-4-type-system/14-value-types-valhalla.md)    | The future: objects without overhead                  |
+| 14  | [Value Objects and Project Valhalla](part-4-type-system/14-value-types-valhalla.md)  | Objects without identity or overhead, previewing in JDK 28 |
 
 ### [Part V — Concurrency and Threading](part-5-concurrency/index.md)
 
@@ -56,7 +57,7 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | #   | Chapter                                                                      | What you'll learn                                       |
 | --- | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
 | 19  | [JIT Compilation Deep Dive](part-6-performance/19-jit-deep-dive.md)          | Inlining, escape analysis, speculative optimization     |
-| 20  | [GraalVM and Native Image](part-6-performance/20-graalvm.md)                 | AOT compilation, polyglot runtime, native binaries      |
+| 20  | [Ahead-of-Time: Project Leyden and GraalVM Native Image](part-6-performance/20-graalvm.md) | The AOT cache, native binaries, and faster startup |
 | 21  | [Monitoring and Diagnostics](part-6-performance/21-monitoring.md)            | JFR, async-profiler, heap dumps, flame graphs           |
 | 22  | [Common Performance Pitfalls](part-6-performance/22-performance-pitfalls.md) | Autoboxing, megamorphic calls, and Scala-specific traps |
 
@@ -64,10 +65,10 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 
 | #   | Chapter                                                                  | What you'll learn                                    |
 | --- | ------------------------------------------------------------------------ | ---------------------------------------------------- |
-| 23  | [The Module System (JPMS)](part-7-ecosystem/23-module-system.md)         | Strong encapsulation and what it means for Scala     |
+| 23  | [The Module System and Integrity by Default](part-7-ecosystem/23-module-system.md) | Strong encapsulation, `import module`, and what it means for Scala |
 | 24  | [JNI, Panama, and Native Interop](part-7-ecosystem/24-native-interop.md) | Calling C from the JVM — the old way and the new way |
 | 25  | [The JVM Language Ecosystem](part-7-ecosystem/25-language-ecosystem.md)  | How Scala, Kotlin, Clojure, and others coexist       |
-| 26  | [What's Next for the JVM](part-7-ecosystem/26-whats-next.md)             | Valhalla, Leyden, Lilliput — the roadmap             |
+| 26  | [What's Next for the JVM](part-7-ecosystem/26-whats-next.md)             | Valhalla, Leyden, Babylon — the roadmap              |
 
 ### [Appendices](appendices/index.md)
 
@@ -77,6 +78,5 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 | B   | [Bytecode Instruction Reference](appendices/b-bytecode-reference.md) | Every instruction, grouped and explained |
 | C   | [Glossary](appendices/c-glossary.md)                                 | JVM terminology in plain language        |
 
----
-
-> **How to read this book**: Start from Part I if you're new to the JVM. If you already know the basics, jump to whatever Part interests you — each one is self-contained enough to read independently, with cross-references where needed. Every chapter includes runnable examples in Java and Scala.
+> [!TIP]
+> **How to read this book**: Start from Part I if you're new to the JVM. If you already know the basics, jump to whatever Part interests you — each one is self-contained enough to read independently, with cross-references where needed. Most chapters include runnable examples in Java and Scala.

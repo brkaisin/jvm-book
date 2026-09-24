@@ -1,55 +1,67 @@
 # Chapter 10 — The Garbage Collectors: A Tour
 
-[← Previous: GC Fundamentals](09-gc-fundamentals.md) · [Next: Tuning the GC →](11-gc-tuning.md)
-
----
-
 ## Choosing a Garbage Collector
 
-The JVM comes with several garbage collectors, each designed for different workloads. Picking the right one can make a dramatic difference in your application's behavior. Let's tour all of them.
+The JVM comes with several garbage collectors, each designed for different workloads. Picking the right one can make a real difference to your application's latency, throughput and memory footprint. Let's tour all of them.
+
+Here's the line-up in OpenJDK 27 at a glance:
+
+| Collector      | Pauses                          | Best for                                  | Status in JDK 27                                                              |
+| -------------- | ------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
+| **G1**         | Short, with a target (200 ms)   | Almost everything                         | <span class="since">Java 27</span> Default on every machine (JEP 523)         |
+| **ZGC**        | Sub-millisecond, any heap size  | Latency-sensitive services, huge heaps    | Generational only (JEP 474 in 23, JEP 490 in 24)                               |
+| **Shenandoah** | Sub-millisecond                 | Latency-sensitive services                | Generational mode is a product feature since 25; default mode in 28            |
+| **Parallel**   | Long, but efficient             | Batch jobs, maximum throughput            | Supported                                                                      |
+| **Serial**     | Long, single-threaded           | Tiny heaps, single-CPU tools              | Supported (no longer picked automatically)                                     |
+| **Epsilon**    | None (never collects)           | Benchmarks, very short-lived jobs         | Experimental                                                                   |
+| ~~CMS~~        | —                               | —                                         | Removed in Java 14                                                             |
 
 ## Serial GC
 
-**The simplest collector.** Single-threaded for everything — both young and old generation collection.
+**The simplest collector.** Single-threaded for everything, both young and old generation collection.
 
 ```bash
 java -XX:+UseSerialGC -jar myapp.jar
 ```
 
 How it works:
-- Young gen: Single-threaded **copying** collector
-- Old gen: Single-threaded **mark-compact**
+
+- Young gen: single-threaded **copying** collector
+- Old gen: single-threaded **mark-compact**
 - All collections are stop-the-world
 
-```
+```text
 Application:  ───────────────┤ STW ├───────────────┤ STW ├────────
 GC thread:                   │ GC  │               │ GC  │
                              └─────┘               └─────┘
                             (1 thread)            (1 thread)
 ```
 
-**When to use it:**
-- Tiny heaps (< 200 MB)
-- Single-core machines (containers with 1 vCPU)
-- Client applications where low overhead matters more than pause time
-- When you want the simplest, most predictable behavior
+Until JDK 26, the JVM silently chose Serial when it thought it was running on a small machine: fewer than 2 CPUs or less than 1792 MB of memory. That's a *lot* of containers! Since **JDK 27 (JEP 523)** that special case is gone and G1 is the default everywhere. Serial is still there if you ask for it.
 
-**Not suitable for:** Anything with a large heap or low-latency requirements.
+**When to use it:**
+
+- Tiny heaps (up to a few hundred MB) where you want the lowest possible overhead
+- Command-line tools and short scripts
+- Single-CPU containers, *if you measured* that it beats G1 for your workload
+
+**Not suitable for:** anything with a large heap or low-latency requirements.
 
 ## Parallel GC (Throughput Collector)
 
-**Maximize throughput** — minimize the total time spent in GC, even if individual pauses are long.
+**Maximise throughput**: minimise the total time spent in GC, even if individual pauses are long.
 
 ```bash
 java -XX:+UseParallelGC -jar myapp.jar
 ```
 
 How it works:
-- Young gen: Multi-threaded **copying** collector (multiple GC threads work in parallel)
-- Old gen: Multi-threaded **mark-compact**
-- All collections are still stop-the-world — but they finish faster because multiple threads do the work
 
-```
+- Young gen: multi-threaded **copying** collector
+- Old gen: multi-threaded **mark-compact**
+- All collections are still stop-the-world, but they finish faster because many threads share the work
+
+```text
 Application:  ────────────┤  STW ├─────────────────┤  STW  ├────────
 GC threads:               │ ████ │                 │ ████  │
                           │ ████ │                 │ ████  │
@@ -59,52 +71,45 @@ GC threads:               │ ████ │                 │ ████ 
 ```
 
 **When to use it:**
+
 - Batch processing, data crunching, ETL pipelines
 - When you care about *total throughput*, not individual request latency
-- Default before Java 9
+- It was the default collector on servers before Java 9
 
-**Not suitable for:** Interactive services where pause time matters.
+**Not suitable for:** interactive services where pause time matters.
 
-> **Scala parallel**: If you're running a Spark job, you're typically using Parallel GC. Spark is throughput-oriented — you want to process as many records per second as possible, and occasional long pauses are acceptable.
+> **Scala parallel**: Throughput-oriented jobs such as Spark executors or big sbt builds are the natural home of Parallel GC: you want as many records per second as possible, and an occasional long pause doesn't hurt anyone. That said, G1 has closed much of the gap (see [below](#g1-garbage-first--the-default)), so measure both.
 
-## CMS (Concurrent Mark-Sweep) — Retired
+## CMS (Concurrent Mark-Sweep) — Removed
 
-**Goal: Low pause times** by doing most GC work concurrently with your application.
-
-```bash
-# Don't use this for new projects
-java -XX:+UseConcMarkSweepGC -jar myapp.jar
-```
-
-CMS was **deprecated in Java 9** and **removed in Java 14**. We mention it because:
-1. You might encounter it in legacy systems
-2. Understanding why it failed is instructive
+CMS was the first mainstream *concurrent* collector. It was **deprecated in Java 9** and **removed in Java 14**; on a modern JDK, `-XX:+UseConcMarkSweepGC` is an unrecognised option and the JVM refuses to start. We mention it because you'll still find it in old start scripts, and because its failure is instructive.
 
 How it worked:
-1. **Initial Mark** (STW, brief): Mark objects directly reachable from GC roots
-2. **Concurrent Mark**: Trace all reachable objects *while the application runs*
-3. **Remark** (STW, brief): Fix up anything that changed during concurrent mark
-4. **Concurrent Sweep**: Free unreachable objects concurrently
+
+1. **Initial Mark** (STW, brief): mark objects directly reachable from GC roots
+2. **Concurrent Mark**: trace all reachable objects *while the application runs*
+3. **Remark** (STW, brief): fix up anything that changed during concurrent mark
+4. **Concurrent Sweep**: free unreachable objects concurrently
 
 What went wrong:
-- **No compaction** → fragmentation built up over time → eventually forced a single-threaded full GC (the dreaded "CMS failure" mode, also known as "concurrent mode failure")
-- Complex to tune — many interrelated flags
-- High CPU overhead during concurrent phases
-- Fragmentation could cause unpredictable, catastrophic pauses
 
-**G1 replaced it.** If you see CMS in a production system, migrating to G1 or ZGC is strongly recommended.
+- **No compaction** → fragmentation built up over time → eventually a long, stop-the-world full GC (the dreaded "concurrent mode failure")
+- Complex to tune, with many interrelated flags
+- Unpredictable, occasionally catastrophic pauses
+
+**G1 replaced it.** If you find CMS flags in a start script, delete them and start from G1's defaults (or ZGC if latency is the goal).
 
 ## G1 (Garbage First) — The Default
 
-**The balanced collector.** Good throughput *and* reasonable pause times. Default since Java 9.
+**The balanced collector.** Good throughput *and* predictable pause times. Default on server-class machines since Java 9, and on **every** machine since Java 27.
 
 ```bash
-java -XX:+UseG1GC -jar myapp.jar    # Default since Java 9
+java -XX:+UseG1GC -jar myapp.jar    # the default; the flag is only needed to be explicit
 ```
 
-G1 uses a fundamentally different heap layout: instead of contiguous young/old generations, the heap is divided into **regions** (typically 2,048 regions, each 1–32 MB):
+G1 uses a different heap layout: instead of contiguous young and old generations, the heap is divided into equal-sized **regions** (G1 aims for about 2,048 of them; by default each is 1–32 MB, a power of two):
 
-```
+```text
 ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
 │  E  │  E  │  S  │  O  │  O  │  H  │  H  │  E  │
 ├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
@@ -113,175 +118,253 @@ G1 uses a fundamentally different heap layout: instead of contiguous young/old g
 │  O  │     │  O  │  E  │  O  │  O  │     │  O  │
 └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
 
-E = Eden    S = Survivor    O = Old    H = Humongous      = Free
+E = Eden   S = Survivor   O = Old   H = Humongous   (blank) = Free
 ```
 
 Key concepts:
 
 ### Regions
-Any region can be Eden, Survivor, or Old. The JVM reassigns regions dynamically. This means the young generation can grow or shrink without moving anything.
+
+Any region can be Eden, Survivor, or Old, and the JVM reassigns them dynamically. The young generation can grow or shrink just by changing how many regions it owns, without moving anything.
 
 ### Humongous Objects
-Objects larger than half a region go into special **humongous regions**. These span multiple contiguous regions and are collected separately. Frequent humongous allocations are a performance problem.
+
+Objects of at least half a region go into special **humongous regions**, spanning as many contiguous regions as needed. They are expensive to allocate and are only reclaimed under certain conditions, so frequent humongous allocations are a classic G1 performance problem (see the case study in [Chapter 11](11-gc-tuning.md)).
 
 ### Collection Sets (CSet)
-G1 picks the regions with the most garbage ("garbage first" — hence the name) for collection. It doesn't collect the entire heap at once.
+
+G1 picks the regions with the most garbage ("garbage first", hence the name) for collection. It never has to collect the whole heap at once.
 
 ### How G1 Works
 
+```text
+   ┌────────────────────────────────┐  can't keep up
+   │ Young-only collections         │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+   └──▲─────────────┬───────────▲───┘                     ┆
+      │             │           │                         ▼
+      │             │           │                 ┌──────────────┐
+      │             │           └─────────────────│ Full GC      │
+      │             │ old gen crosses the         │ last resort  │
+      │             │ occupancy threshold         └──────────────┘
+      │             ▼                                     ▲
+      │  ┌──────────────────────────┐                     ┆
+      │  │ Concurrent marking       │                     ┆
+      │  └──────────┬───────────────┘                     ┆
+      │             │ garbage-rich old                    ┆
+      │             │ regions found                       ┆
+      │             ▼                                     ┆
+      │  ┌──────────────────────────┐  can't keep up      ┆
+      │  │ Mixed collections        │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+      │  │ young + some old regions │
+      │  └──────────┬───────────────┘
+      │             │ enough old regions reclaimed
+      └─────────────┘
+```
+
 **Young-only collections** (minor GC):
-1. All Eden and Survivor regions are collected (STW, copying collector)
+
+1. All Eden and Survivor regions are collected (STW, copying, many threads)
 2. Live objects are moved to Survivor or Old regions
-3. Target pause time guides how many regions are collected
+3. The pause-time target guides how big the young generation can be
 
 **Mixed collections** (old gen cleanup):
-1. **Concurrent marking** identifies high-garbage old regions
-2. These regions are included in subsequent collections alongside young regions
-3. This avoids a massive full-GC pause
 
-**Full GC** (last resort):
-If mixed collections can't keep up, G1 falls back to a single-threaded full GC. This is the worst case — you want to avoid it.
+1. **Concurrent marking** runs alongside the application and finds old regions with lots of garbage
+2. Those regions are added to the next few young collections, a few at a time
+3. This avoids ever needing one massive old-generation pause
+
+**Full GC** (last resort): if G1 can't reclaim memory fast enough, it falls back to a stop-the-world, multi-threaded (since Java 10) full compaction. You want to see this rarely, if ever.
 
 ### Pause Time Target
 
 G1's killer feature is the **pause time target**:
 
 ```bash
-java -XX:MaxGCPauseMillis=200 -jar myapp.jar    # Target: 200ms pauses
+java -XX:MaxGCPauseMillis=200 -jar myapp.jar    # 200 ms is the default
 ```
 
-G1 uses historical data to predict how long collecting a set of regions will take. It picks just enough regions to stay within the target. It won't always hit the target (it's a goal, not a guarantee), but it tries.
+G1 uses historical data to predict how long collecting a set of regions will take, and picks just enough regions to stay within the target. It won't always hit it (it's a goal, not a guarantee), but it tries.
 
-> **Scala connection**: For a typical Scala web service (http4s, Play, Akka HTTP), G1 with a 100–200ms pause target is a solid default. Most teams don't need to look beyond this.
+### What's New in G1
+
+G1 has had a busy few years, and that is precisely why it could become the default everywhere:
+
+- <span class="since">Java 22</span> **Region pinning** (JEP 423): when native code holds a raw pointer into a Java array through a JNI *critical region*, G1 now pins just that region instead of blocking all garbage collection until the native call returns. No more GC stalls caused by JNI-heavy libraries.
+- <span class="since">Java 24</span> **Late barrier expansion** (JEP 475): an internal change to how C2 emits G1's barriers, which makes the JIT faster and the barriers easier to maintain.
+- <span class="since">Java 26</span> **Better throughput with less synchronisation** (JEP 522): G1 now uses *two* card tables. Application threads dirty one without any synchronisation while G1's background threads process the other, and G1 swaps them when needed. The write barrier drops from around 50 x64 instructions to about 12, which gives 5–15% more throughput for applications that write a lot of references (and up to 5% for others), for about 2 MB of extra native memory per GB of heap.
+- <span class="since">Java 27</span> **Default in all environments** (JEP 523): combined with a lower native memory overhead, these improvements make G1 good enough to replace Serial on small machines too.
+
+> **Scala connection**: For a typical Scala web service (http4s, Play, Pekko HTTP, ZIO HTTP), G1 with its default settings is a solid choice. Most teams never need to look beyond it.
 
 ## ZGC (Z Garbage Collector)
 
-**Sub-millisecond pauses**, regardless of heap size. Even terabyte heaps.
+**Sub-millisecond pauses**, regardless of heap size, from hundreds of megabytes to 16 TB.
 
 ```bash
-java -XX:+UseZGC -jar myapp.jar
+java -XX:+UseZGC -jar myapp.jar    # generational, the only mode since Java 24
 ```
 
-ZGC is designed for applications where latency is critical: trading systems, ad servers, real-time services.
+ZGC is designed for applications where latency is critical: trading systems, ad servers, real-time APIs, big in-memory caches. It became a product feature in Java 15.
 
 ### How ZGC Achieves Sub-Millisecond Pauses
 
-ZGC does almost *everything* concurrently with your application:
+ZGC does almost *everything* concurrently with your application, including moving objects. Each collection cycle has only three very short pauses, which don't grow with the heap or the live set:
 
-| Phase                 | Concurrent? | Duration |
-| --------------------- | ----------- | -------- |
-| Mark Start            | STW         | < 1 ms   |
-| Concurrent Mark       | ✅           | Varies   |
-| Mark End              | STW         | < 1 ms   |
-| Concurrent Relocation | ✅           | Varies   |
+| Phase                 | Concurrent? | Duration       |
+| --------------------- | ----------- | -------------- |
+| Pause Mark Start      | STW         | well under 1 ms |
+| Concurrent Mark       | Yes         | varies         |
+| Pause Mark End        | STW         | well under 1 ms |
+| Concurrent prepare    | Yes         | varies         |
+| Pause Relocate Start  | STW         | well under 1 ms |
+| Concurrent Relocate   | Yes         | varies         |
 
-Only two tiny STW pauses, each under 1 ms. The actual work (marking and relocating) happens while your application runs.
+The actual work (marking and relocating) happens while your application runs.
 
-### Colored Pointers
+### Colored Pointers and Barriers
 
-ZGC uses a technique called **colored pointers** — it stores GC metadata directly in the unused bits of 64-bit object references:
+ZGC stores GC metadata directly in object references, a technique called **colored pointers**. In today's (generational) ZGC, the metadata sits in the low-order bits of each 64-bit reference stored in the heap, with the address in the high-order bits:
 
-```
-Standard 64-bit pointer:
-┌──────────────────────────────────────────────────────────┐
-│                    Object address (44 bits)              │
-└──────────────────────────────────────────────────────────┘
-
-ZGC colored pointer:
-┌────┬────┬────┬────┬──────────────────────────────────────┐
-│Fin │Rmp │Mrk1│Mrk0│         Object address (42 bits)     │
-└────┴────┴────┴────┴──────────────────────────────────────┘
-  GC metadata bits
+```text
+ZGC colored pointer (as stored in a heap field):
+┌──────────────────────────────────────────────┬────────────────────┐
+│               object address                 │  metadata "color"  │
+└──────────────────────────────────────────────┴────────────────────┘
+  high-order bits                                 low-order bits
 ```
 
-These color bits tell the GC the state of each reference without needing to look at the object itself. This enables concurrent relocation: when ZGC moves an object, it updates the forwarding address and the color bits. The next time your application accesses the reference, a **load barrier** transparently fixes the pointer.
+The color tells the GC what state that particular reference is in (already remapped to the object's new location? already marked in this cycle?), without looking at the object itself. The JIT inserts:
 
-### Generational ZGC (Java 21+)
+- a **load barrier** when a reference is read from the heap: it checks the color and, if the object has moved, fixes the pointer on the spot ("self-healing"), then strips the color before your code uses the reference
+- a **store barrier** when a reference is written: it takes care of concurrent marking and of the remembered sets that track old→young pointers
 
-Since Java 21, ZGC supports generational collection. This significantly reduces memory overhead and CPU usage, because short-lived objects (young generation) are collected more frequently and cheaply.
+> [!NOTE]
+> Older descriptions of ZGC show four color bits (`Finalizable`, `Remapped`, `Marked1`, `Marked0`) above a 42-bit address, and mention that `ps` reports three times the real memory use. That was the original, non-generational ZGC, which relied on mapping the heap three times. Generational ZGC does the work in its barriers instead, and the non-generational mode was removed in Java 24.
+
+### Generational ZGC
+
+Generational ZGC arrived in Java 21 (JEP 439), became the default ZGC mode in Java 23 (JEP 474), and has been the *only* mode since Java 24 (JEP 490). Collecting short-lived objects frequently and cheaply in a young generation greatly reduces ZGC's CPU and memory overhead, which matters a lot for allocation-heavy code such as typical Scala.
 
 ```bash
-java -XX:+UseZGC -XX:+ZGenerational -jar myapp.jar    # Java 21
-# In Java 23+, generational is the default mode
+# Java 23+: generational ZGC
+java -XX:+UseZGC -jar myapp.jar
+
+# Java 21-22 only; ignored with a warning since Java 24
+java -XX:+UseZGC -XX:+ZGenerational -jar myapp.jar
 ```
 
 > **When to use ZGC:**
 > - Heap sizes from a few hundred MB to multi-terabyte
-> - Latency-sensitive applications (p99 latency matters)
-> - When you're willing to trade some throughput for consistent latency
+> - Latency-sensitive applications (p99 / p999 latency matters)
+> - When you're willing to trade a bit of throughput and memory headroom for consistent latency
 > - Any application where GC pauses are visible to users
 
 ## Shenandoah
 
-**Concurrent compaction**, similar goals to ZGC but with a different approach.
+**Concurrent compaction**, with goals similar to ZGC but a different design. Developed by Red Hat, part of OpenJDK since Java 12 and a product feature since Java 15.
 
 ```bash
+# Single-generation mode (the default mode up to Java 27)
 java -XX:+UseShenandoahGC -jar myapp.jar
+
+# Generational mode (product feature since Java 25)
+java -XX:+UseShenandoahGC -XX:ShenandoahGCMode=generational -jar myapp.jar
 ```
 
-Shenandoah was developed by Red Hat and included in OpenJDK (but not Oracle JDK). Like ZGC, it aims for sub-millisecond STW pauses.
+Like ZGC, Shenandoah marks and moves objects while the application runs, keeping pauses typically under a millisecond.
+
+> [!WARNING]
+> Shenandoah is included in most OpenJDK distributions (Eclipse Temurin, Amazon Corretto, Red Hat builds, …) but **not in Oracle's own JDK builds**. Check your distribution before you standardise on it.
 
 ### How Shenandoah Differs from ZGC
 
-| Aspect           | ZGC                                  | Shenandoah                                     |
-| ---------------- | ------------------------------------ | ---------------------------------------------- |
-| **GC metadata**  | Colored pointers (in reference bits) | Brooks pointers (extra indirection per object) |
-| **Barrier type** | Load barrier                         | Load + store barriers                          |
-| **Compaction**   | Concurrent, pointer coloring         | Concurrent, forwarding pointers                |
-| **Heap sizes**   | Designed for multi-terabyte          | Good for medium to large heaps                 |
-| **Availability** | Oracle JDK + OpenJDK                 | OpenJDK only (not Oracle JDK)                  |
+| Aspect             | ZGC                                     | Shenandoah                                              |
+| ------------------ | --------------------------------------- | ------------------------------------------------------- |
+| **Forwarding**     | Colored pointers + forwarding tables    | Forwarding pointer stored in the old copy's mark word    |
+| **Barriers**       | Load + store barriers                   | Load-reference barrier + SATB store barrier              |
+| **Generational**   | Always (since 24)                       | Opt-in since 25; default mode planned for 28             |
+| **Availability**   | All OpenJDK builds, incl. Oracle JDK    | Most OpenJDK builds, not Oracle JDK                      |
 
-### Brooks Pointers
+### Forwarding Without an Extra Word
 
-Each object has an extra word (the "Brooks pointer") that normally points to itself. When the GC relocates an object, it updates the Brooks pointer to the new location. When your code accesses the object, it follows the indirection.
+When Shenandoah moves an object, the old copy's **mark word** is overwritten with a forwarding pointer to the new copy (tagged with the `11` lock bits we met in [Chapter 8](08-object-layout.md)). A **load-reference barrier** checks, whenever the application loads a reference to an object that may have moved, whether it points into a region being evacuated, and if so follows (and updates) it to the new copy:
 
+```text
+┌──────────────┐    stale      ┌──────────────────────────┐
+│ Reference    │╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶│ Old copy                 │
+│ in a field   │               │ mark word = forwarding   │
+└──────┬───────┘               │ pointer                  │
+       │                       └────────────┬─────────────┘
+       │                                    │
+       │                                    ▼
+       │  after the barrier    ┌──────────────────────────┐
+       └──────────────────────▶│ New copy                 │
+          heals it             │ header + fields          │
+                               └──────────────────────────┘
 ```
-Normal:        Object ──▶ [Brooks ptr ──▶ self] [data...]
-After reloc:   Old location [Brooks ptr ──▶ new location] → [data at new loc]
+
+> [!NOTE]
+> Early Shenandoah (up to Java 12) used **Brooks pointers**: an extra word in front of *every* object that normally pointed to itself. Since Java 13 the forwarding pointer lives in the mark word instead, so Shenandoah no longer costs an extra word per object. Many blog posts still describe the old design.
+
+### Generational Shenandoah
+
+The same generational idea is coming to Shenandoah: experimental in Java 24 (JEP 404), a product feature in Java 25 (JEP 521, no longer needs `-XX:+UnlockExperimentalVMOptions`), and planned to become Shenandoah's **default mode in Java 28** (JEP 535).
+
+## Epsilon: The No-Op Collector
+
+Epsilon (JEP 318, Java 11) allocates memory but **never reclaims it**. When the heap is full, the JVM stops with an `OutOfMemoryError`.
+
+```bash
+java -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xmx1g -jar myapp.jar
 ```
+
+That sounds useless, but it's handy for:
+
+- **Performance testing**: measure your code without any GC interference, or measure how much a real collector costs you
+- **Very short-lived jobs** that finish before filling the heap
+- **Allocation testing**: prove that a hot path doesn't allocate at all
 
 ## Decision Guide: Which GC to Use
 
-```
-                    ┌─────────────────────┐
-                    │  What matters most? │
-                    └──────────┬──────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              ▼                ▼                ▼
-         Throughput       Balanced        Low latency
-              │                │                │
-              ▼                ▼                ▼
-        Parallel GC          G1 GC         ZGC or Shenandoah
-                                                │
-                                    ┌───────────┼───────────┐
-                                    ▼                       ▼
-                               Oracle JDK?             Any OpenJDK
-                                    │                       │
-                                    ▼                       ▼
-                                  ZGC              ZGC or Shenandoah
+```text
+Start with the default: G1
+│
+├── Do GC pauses hurt your p99 latency?
+│   │
+│   ├── No:  Batch job where only total throughput matters?
+│   │        ├── No  ──▶ Stay on G1
+│   │        └── Yes ──▶ Try Parallel GC, compare with G1
+│   │
+│   └── Yes: Is Shenandoah in your JDK build, and do you prefer it?
+│            ├── No  ──▶ ZGC (-XX:+UseZGC)
+│            └── Yes ──▶ Shenandoah, generational mode
+│
+└╌╌ Also: tiny heap, single CPU, short-lived CLI tool?
+         └── Yes ──▶ Consider Serial and measure
 ```
 
 Quick rules:
-- **Default**: G1. It's the default for a reason — it's the best general-purpose choice.
-- **Batch/ETL**: Parallel GC. Maximize records-per-second.
-- **Low latency**: ZGC (or Shenandoah on OpenJDK). Sub-millisecond pauses.
-- **Tiny heap/container**: Serial GC. Minimal overhead.
-- **Huge heap (100 GB+)**: ZGC. It was designed for this.
 
-> **For Scala developers**: If you're using Cats Effect, ZIO, or Akka with reactive patterns, G1 is usually fine. If you're seeing GC-related p99 latency issues, ZGC is the answer. The functional style (many short-lived objects) plays well with generational collectors — G1 and Generational ZGC are your best friends.
+- **Default**: G1. It's the default for a reason: the best general-purpose choice, now on every machine.
+- **Batch/ETL**: Parallel GC, if measurements show it beats G1 for your job.
+- **Low latency**: ZGC (or Shenandoah, if your JDK build includes it). Sub-millisecond pauses.
+- **Huge heap (100 GB+)**: ZGC. It was designed for this.
+- **Tiny tools**: Serial can still win, but since Java 27 you have to ask for it.
+- **Benchmarks and allocation tests**: Epsilon.
+
+> **For Scala developers**: If you're using Cats Effect, ZIO, or Pekko/Akka with reactive patterns, G1 is usually fine. If you're seeing GC-related p99 latency issues, ZGC is the answer. The functional style (many short-lived objects) plays well with generational collectors, and today *all* the main collectors (G1, ZGC, and soon Shenandoah by default) are generational.
+
+<div class="takeaways">
 
 ## Key Takeaways
 
-- **Serial**: Single-threaded, simple, tiny heaps only
-- **Parallel**: Multi-threaded STW, best throughput, batch workloads
-- **CMS**: Dead. Don't use it. Migrate to G1 or ZGC.
-- **G1**: Region-based, balanced, configurable pause targets — the safe default
-- **ZGC**: Sub-millisecond pauses via colored pointers and concurrent everything
-- **Shenandoah**: Similar goals to ZGC, uses Brooks pointers, OpenJDK only
-- G1 is the default since Java 9 and the right choice for most applications
-- When latency matters, ZGC is the modern answer
+- **G1** is region-based, balanced, with a pause-time target, and since **Java 27 it's the default on every machine**, including small containers (JEP 523)
+- G1 keeps improving: region pinning (22), faster write barriers with dual card tables (26)
+- **ZGC**: sub-millisecond pauses via colored pointers and load/store barriers; **generational only** since Java 24
+- **Shenandoah**: similar goals, forwarding pointers in the mark word (no more Brooks pointers); generational mode is a product feature since 25 and becomes the default in 28; not in Oracle JDK builds
+- **Parallel**: multi-threaded STW, best raw throughput for batch workloads
+- **Serial**: single-threaded, tiny heaps only, no longer chosen automatically
+- **Epsilon**: never collects; for benchmarks and tests
+- **CMS**: removed in Java 14; delete its flags
 
----
-
-[← Previous: GC Fundamentals](09-gc-fundamentals.md) · [Next: Tuning the GC →](11-gc-tuning.md)
+</div>

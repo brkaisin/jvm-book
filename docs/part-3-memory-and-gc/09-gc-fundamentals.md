@@ -1,9 +1,5 @@
 # Chapter 9 — Garbage Collection Fundamentals
 
-[← Previous: Object Layout](08-object-layout.md) · [Next: GC Tour →](10-gc-tour.md)
-
----
-
 ## Why Garbage Collection?
 
 In C and C++, you manually allocate and free memory:
@@ -30,7 +26,7 @@ def process(): Unit =
   // After this method returns, 'temp' is unreachable → garbage
 ```
 
-The GC doesn't use reference counting (like Python or Swift). Reference counting breaks with circular references:
+The JVM doesn't use reference counting (like Python or Swift). Reference counting breaks with circular references:
 
 ```scala
 class Node(var next: Node = null)
@@ -42,11 +38,11 @@ b.next = a  // Circular reference!
 // Even if nothing else references a or b, their reference counts never reach 0
 ```
 
-Instead, the JVM uses **tracing** — it starts from known live references and traces everything reachable.
+Instead, the JVM uses **tracing**: it starts from known live references and follows everything reachable from them.
 
 ## GC Roots: Where the Trace Starts
 
-The GC needs a starting point — a set of references that are **known to be alive**. These are called **GC roots**:
+The GC needs a starting point: a set of references that are **known to be alive**. These are called **GC roots**:
 
 | GC Root                          | Example                                     |
 | -------------------------------- | ------------------------------------------- |
@@ -54,185 +50,245 @@ The GC needs a starting point — a set of references that are **known to be ali
 | **Static fields**                | `object Config { val instance = ... }`      |
 | **Active threads**               | The `Thread` objects themselves             |
 | **JNI references**               | Objects referenced from native code         |
-| **Synchronization monitors**     | Objects used as locks (`synchronized`)      |
+| **Synchronization monitors**     | Objects currently used as locks             |
 | **Class loader references**      | Class loaders and the classes they loaded   |
 
 From these roots, the GC follows every reference, transitively, marking everything reachable:
 
-```
-GC Roots
-   │
-   ├──▶ Object A ──▶ Object B ──▶ Object C     ← All reachable (live)
-   │
-   └──▶ Object D                                ← Reachable (live)
+```text
+┌──────────┐     ┌───┐     ┌───┐     ┌───┐
+│ GC roots │────▶│ A │────▶│ B │────▶│ C │
+└────┬─────┘     └───┘     └───┘     └───┘
+     │           ┌───┐
+     └──────────▶│ D │
+                 └───┘
 
-         Object E ──▶ Object F                   ← Unreachable (garbage!)
-         Object G ──▶ Object H ──▶ Object G      ← Circular, but unreachable (garbage!)
+┌╌╌╌┐     ┌╌╌╌┐
+┆ E ┆╌╌╌╌▶┆ F ┆
+└╌╌╌┘     └╌╌╌┘
+
+┌╌╌╌┐     ┌╌╌╌┐
+┆ G ┆╌╌╌╌▶┆ H ┆
+┆   ┆◀╌╌╌╌┆   ┆
+└╌╌╌┘     └╌╌╌┘
 ```
 
-Objects E, F, G, and H are all garbage, even though G and H reference each other. Since no GC root can reach them, they're dead.
+A, B, C and D are reachable, so they're live. Objects E, F, G, and H (dashed) are all garbage, even though G and H reference each other: no path leads to them from a root, so they're dead.
 
 ## The Core Algorithms
 
-Every GC uses combinations of three fundamental algorithms.
+Every collector is built from combinations of three fundamental algorithms.
 
 ### Mark and Sweep
 
 The simplest approach. Two phases:
 
-**Mark phase**: Starting from GC roots, traverse all reachable objects and mark them (set a flag in their mark word).
+**Mark phase**: Starting from GC roots, traverse all reachable objects and mark them. The mark can be a bit in the object header, but most modern collectors keep it in a separate **mark bitmap** (one bit per heap word), which is cheaper to scan and clear.
 
-**Sweep phase**: Walk the entire heap. Any object not marked is garbage — reclaim its memory.
+**Sweep phase**: Walk the heap. Any object not marked is garbage: its memory is added to a *free list*.
 
-```
-Before GC:
+```text
+Before GC (✓ = marked as reachable):
 ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐
 │ A │ │ B │ │ C │ │ D │ │ E │ │ F │ │ G │
 └───┘ └───┘ └───┘ └───┘ └───┘ └───┘ └───┘
-  ✓           ✓     ✓                       (marked as reachable)
+  ✓           ✓     ✓
 
-After sweep:
-┌───┐ ┌   ┐ ┌───┐ ┌───┐ ┌   ┐ ┌   ┐ ┌   ┐
-│ A │ │   │ │ C │ │ D │ │   │ │   │ │   │
-└───┘ └   ┘ └───┘ └───┘ └   ┘ └   ┘ └   ┘
-            free    free    free    free
+After sweep (dotted = free):
+┌───┐ ┌┄┄┄┐ ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+│ A │ ┆   ┆ │ C │ │ D │ ┆     free      ┆
+└───┘ └┄┄┄┘ └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
 ```
 
-**Problem**: After sweeping, memory becomes **fragmented**. You have many small gaps between live objects. Allocating a large object might fail even though there's enough *total* free space — just not contiguous.
+**Problem**: After sweeping, memory becomes **fragmented**: many small gaps between live objects. Allocating a large object might fail even though there's enough *total* free space, just not in one contiguous piece.
 
 ### Mark-Compact
 
-Same as mark-and-sweep, but after marking, live objects are **compacted** — slid to one end of the heap:
+Same marking, but afterwards live objects are **compacted**: slid to one end of the heap:
 
-```
-Before:
-┌───┐ ┌   ┐ ┌───┐ ┌───┐ ┌   ┐ ┌   ┐ ┌   ┐
-│ A │ │   │ │ C │ │ D │ │   │ │   │ │   │
+```text
+Before (dotted = free):
+┌───┐ ┌┄┄┄┐ ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+│ A │ ┆   ┆ │ C │ │ D │ ┆     free      ┆
+└───┘ └┄┄┄┘ └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
 
 After compaction:
-┌───┐ ┌───┐ ┌───┐ ┌                         ┐
-│ A │ │ C │ │ D │ │       Free space        │
-└───┘ └───┘ └───┘ └                         ┘
+┌───┐ ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+│ A │ │ C │ │ D │ ┆  free (contiguous)  ┆
+└───┘ └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
 ```
 
-**Advantage**: No fragmentation. Allocation is as fast as bumping a pointer.
+**Advantage**: No fragmentation. Allocation becomes as fast as bumping a pointer.
 
 **Disadvantage**: Moving objects means updating every reference that points to them. This is expensive.
 
 ### Copying
 
-Instead of compacting in place, divide memory into two halves ("from-space" and "to-space"). Copy live objects from one half to the other, then swap:
+Instead of compacting in place, divide memory into two halves ("from-space" and "to-space"). Copy live objects from one half to the other, then swap the roles:
 
+```text
+From-space:                    To-space:
+┌───┐ ┌┄┄┄┐ ┌───┐ ┌┄┄┄┐        ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┐
+│ A │ ┆   ┆ │ C │ ┆   ┆  ───▶  │ A │ │ C │ ┆  free   ┆
+└───┘ └┄┄┄┘ └───┘ └┄┄┄┘        └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┘
+                               (compacted, no fragmentation)
+
+Then swap: to-space becomes from-space for the next cycle.
 ```
-From-space:                      To-space:
-┌───┐ ┌   ┐ ┌───┐ ┌   ┐         ┌                              ┐
-│ A │ │   │ │ C │ │   │  ──▶    │ A │ C │     Free space       │
-└───┘ └   ┘ └───┘ └   ┘         └───┘───┘                      ┘
-                                 (compacted, no fragmentation)
 
-Then swap: to-space becomes from-space for next cycle.
-```
+**Advantage**: Live objects end up compacted, allocation is a pointer bump, and the GC only visits *live* objects: the dead ones are never even looked at.
 
-**Advantage**: Live objects end up compacted. Allocation is just a pointer bump. Only need to visit *live* objects (not the entire heap).
+**Disadvantage**: You need spare space to copy into. With a naive two-halves design, half the memory is always empty. This is acceptable when most objects are garbage, which is exactly the case in the young generation (and HotSpot uses small survivor spaces rather than a full half).
 
-**Disadvantage**: Half the memory is always empty (wasted). This is acceptable when most objects are garbage (which is true in the young generation).
-
-> **Key insight**: If 95% of objects are garbage, a copying collector only needs to copy the 5% that are alive. This is incredibly efficient for the young generation, where the survival rate is typically 1–5%.
+> [!IMPORTANT]
+> If 95% of objects are garbage, a copying collector only needs to copy the 5% that are alive. The cost is proportional to *live* data, not heap size. This is what makes young-generation collection so cheap: survival rates there are typically a few percent.
 
 ## Stop-the-World Pauses
 
-All the classic GC algorithms have a dirty secret: they need to **stop all application threads** while they work. This is called a **stop-the-world (STW) pause**.
+The simplest way to run any of these algorithms is to **stop all application threads** while the GC works. This is called a **stop-the-world (STW) pause**.
 
 Why? If your threads are modifying object references while the GC is tracing them, the GC could miss a live object (and free it!) or follow a stale reference. The simplest solution is to freeze everything.
 
-```
+```text
 Application threads:  ──────────┤ PAUSE ├──────────
                                     │
-GC thread:                     ┌────┴────┐
+GC thread(s):                  ┌────┴────┐
                                │ Mark &  │
                                │ Collect │
                                └─────────┘
 ```
 
-STW pauses are the main source of latency spikes in JVM applications. A typical minor GC pause is 1–10 ms. A major GC pause can be 100 ms or more. For a web service with a 50 ms SLA, a 200 ms pause is catastrophic.
+STW pauses are the main source of GC-induced latency spikes. A young-generation pause on a modern collector is typically a few milliseconds; a full collection of a large heap with a STW collector can take hundreds of milliseconds or more. For a web service with a 50 ms SLA, a 200 ms pause is catastrophic.
 
-Modern GCs (G1, ZGC, Shenandoah) work hard to minimize or eliminate STW pauses, doing as much work as possible *concurrently* — while your application keeps running.
+Modern collectors (G1, ZGC, Shenandoah) do as much work as possible **concurrently**, while your application keeps running. ZGC and Shenandoah even move objects concurrently, keeping pauses well under a millisecond. The next sections explain what makes that possible.
+
+## Concurrent Marking and Barriers
+
+To mark while the application runs, collectors use the **tri-color abstraction**. Every object is in one of three states:
+
+```text
+                reached from                  all its
+                a root or a                   references
+┌──────────────┐ grey object ┌──────────────┐ followed ┌──────────────┐
+│ White        │────────────▶│ Grey         │─────────▶│ Black        │
+│ not seen yet │             │ seen, fields │          │ seen and     │
+└──────┬───────┘             │ not scanned  │          │ fully        │
+       ┆                     │ yet          │          │ scanned      │
+       ┆ still white when    └──────────────┘          └──────────────┘
+       ┆ marking ends
+       ▼
+    garbage
+```
+
+Marking is done when there are no grey objects left. The danger is that the application, running at the same time, stores a reference to a white object into a black one (which the GC won't scan again) and removes the last other path to it. The white object would then be freed while still in use.
+
+To prevent this, the JIT compiler inserts **barriers**: a few extra instructions around reference reads or writes that let the GC keep track of what the application is doing.
+
+- A **write barrier** (or store barrier) runs when a reference field is written. G1 and Shenandoah use one to record the old value (a *snapshot-at-the-beginning*, or SATB, barrier) so nothing reachable at the start of marking is lost. Generational collectors also use write barriers to maintain the card table, below.
+- A **load barrier** runs when a reference is read from the heap. ZGC and Shenandoah use them to fix up pointers to objects that have been moved, which is how they can compact the heap without stopping your threads.
+
+Barriers are the price of concurrency: a small, constant tax on the application's own work, in exchange for much shorter pauses.
 
 ## Safepoints: Where the JVM Can Pause You
 
-The JVM can't just stop a thread at any arbitrary point. It needs to stop threads at **safepoints** — specific locations in the code where the JVM knows the state of the stack and registers.
+Even concurrent collectors need short pauses, and the JVM can't stop a thread at any arbitrary machine instruction. It stops threads at **safepoints**: locations in the code where the JVM knows exactly which stack slots and registers hold references.
 
-Safepoints are inserted by the JIT compiler at:
+Safepoint checks are inserted by the JIT compiler at:
+
 - Method returns
 - Loop back-edges (the jump back to the top of a loop)
-- Allocation points
 
-When the GC needs to stop the world, it sets a flag. Each thread checks this flag at its next safepoint and suspends itself.
+(and the interpreter can stop at any bytecode). When the JVM needs to stop the world, it arms a per-thread poll word; each thread notices at its next safepoint check and parks itself. Since JDK 10, the JVM can also use **thread-local handshakes** (JEP 312) to stop *one* thread at a time for operations that don't need a global pause.
 
 ```java
-// Safepoints are inserted at loop back-edges:
-for (int i = 0; i < 1000000; i++) {
+// Safepoint checks sit at loop back-edges:
+for (int i = 0; i < 1_000_000; i++) {
     // ... work ...
-    // <<< safepoint check here (back-edge of loop) >>>
+    // <<< safepoint poll here (back-edge of loop) >>>
 }
 ```
 
-> **Gotcha**: A loop that the JIT has determined is "counted" (bounded, with a simple int counter) might have its safepoint checks **removed** as an optimization. This can cause **long time-to-safepoint** — one thread runs a tight loop while all other threads (and the GC) wait for it to reach a safepoint.
->
-> This is a real problem. If you see mysterious long GC pauses but the GC itself ran quickly, check time-to-safepoint. Use `-XX:+PrintSafepointStatistics` (or `-Xlog:safepoint` in modern JVMs).
+> [!WARNING]
+> A slow **time-to-safepoint** can look exactly like a long GC pause: one thread runs a long loop without reaching a safepoint, while every other thread (and the GC) waits for it. Historically C2 removed polls from "counted" `int` loops; since JDK 10 it can use *loop strip mining* (the loop is split into chunks of about 1,000 iterations with a poll between chunks). It's on by default with the concurrent collectors (G1, ZGC, Shenandoah) but off with Serial and Parallel, where throughput matters more. If you see pauses where the GC work itself was short, check with `-Xlog:safepoint` (the old `-XX:+PrintSafepointStatistics` flag no longer exists).
 
 ## Generational Collection: Putting It Together
 
-Combining the core algorithms with the generational heap design ([Chapter 6](../part-2-jvm-architecture/06-runtime-data-areas.md)):
+Combining the core algorithms with the generational heap design ([Chapter 6](../part-2-jvm-architecture/06-runtime-data-areas.md)) gives the life cycle of a typical object:
+
+```text
+                        new object
+                            │
+                            ▼
+                  ┌───────────────────┐  dies young
+                  │       Eden        │──(most objects)──────┐
+                  └──┬─────────────┬──┘                      │
+                     ┆             │ survives a minor GC     │
+                     ┆             ▼                         │
+  too big, or        ┆      ┌─────────────┐                  │
+  survivor space     ┆      │ Survivor    │                  │
+  overflows          ┆      │ age + 1 per │──────────────────┤
+                     ┆      │ GC survived │                  │
+                     ┆      └──────┬──────┘                  │
+                     ┆             │ age reaches the         │
+                     ┆             │ tenuring threshold      ▼
+                  ┌──▼─────────────▼──┐               ┌───────────┐
+                  │ Old generation    │ major/mixed GC│ reclaimed │
+                  │                   │──────────────▶│           │
+                  └───────────────────┘               └───────────┘
+```
 
 ### Minor GC (Young Generation)
 
-1. Eden fills up → trigger minor GC
-2. Uses a **copying** algorithm
+1. Eden fills up → trigger a minor GC
+2. Use a **copying** algorithm
 3. Copy surviving objects from Eden and the active Survivor space to the other Survivor space
-4. Objects that have survived enough cycles → promote to Old Generation
-5. Clear Eden and the old Survivor space
+4. Objects that have survived enough cycles (the age in their header, see [Chapter 8](08-object-layout.md)) → promote to the Old Generation
+5. Eden and the old Survivor space are now empty and reused as a whole
 
 This is fast because:
-- Most objects are dead (weak generational hypothesis) → very few objects to copy
+
+- Most objects are dead (the *weak generational hypothesis*) → very few objects to copy
 - No fragmentation (copying collector)
-- Only scans the young generation, not the entire heap
+- Only the young generation is traced, not the entire heap
 
 ### Major GC / Full GC (Old Generation)
 
-1. Old Generation fills up → trigger major GC
-2. Uses **mark-compact** or **mark-sweep** depending on the collector
-3. Scans the *entire heap* (or large portions of it)
-4. Much slower than minor GC
+1. The Old Generation fills up (or, for concurrent collectors, crosses an occupancy threshold)
+2. The collector uses **mark-compact**, **mark-sweep**, or a concurrent variant, depending on the collector
+3. It has to trace the *entire* live set
+4. Much more expensive than a minor GC; the whole point of G1, ZGC and Shenandoah is to do this work concurrently or incrementally instead of in one big pause
 
 ### The Card Table: Connecting Generations
 
-One complication: an object in the Old Generation might reference an object in the Young Generation. When doing a minor GC, we need to know about these cross-generational references without scanning the entire old generation.
+One complication: an object in the Old Generation might reference an object in the Young Generation. That young object is live, but during a minor GC we don't want to trace the whole old generation just to discover it.
 
-The solution is the **card table** — a data structure that divides the old generation into 512-byte "cards." When an old-generation object's reference field is written, the corresponding card is marked "dirty." During minor GC, only dirty cards need to be scanned.
+The solution is the **card table**: the old generation is divided into 512-byte "cards", with one byte per card in a side table. When a reference field in an old object is written, the write barrier marks the corresponding card "dirty". During a minor GC, only dirty cards need to be scanned for old→young references.
 
-```
+```text
 Old Generation:
-┌──────┬──────┬──────┬──────┬──────┐
-│Card 0│Card 1│Card 2│Card 3│Card 4│
-│      │DIRTY │      │DIRTY │      │
-└──────┴──────┴──────┴──────┴──────┘
-                │              │
-                ▼              ▼
-         Young Gen obj   Young Gen obj
+┌────────┬────────┬────────┬────────┬────────┐
+│ Card 0 │ Card 1 │ Card 2 │ Card 3 │ Card 4 │
+│        │ DIRTY  │        │ DIRTY  │        │
+└────────┴───┬────┴────────┴───┬────┴────────┘
+             │                 │
+             ▼                 ▼
+        Young Gen obj     Young Gen obj
 
-Minor GC only needs to check Card 1 and Card 3 for old→young references.
+Minor GC only needs to scan Card 1 and Card 3 for old→young references.
 ```
 
-> **The write barrier**: Every time a reference field is written, the JVM executes a tiny "write barrier" — a few instructions that mark the card table. This is the cost of generational collection: a small overhead on every reference write. It's almost always worth it.
+G1 builds on the same idea with per-region **remembered sets**, and since JDK 26 (JEP 522) it uses two card tables so that application threads and G1's background threads don't have to synchronise; more on that in [Chapter 10](10-gc-tour.md).
 
-## Finalization and Phantom References
+> **The write barrier** is the cost of generational collection: a few instructions on every reference write. It's almost always worth it.
 
-A note on finalization: Java has `Object.finalize()`, which the GC calls before reclaiming an object. **Don't use it.** It's deprecated (Java 9), unreliable, and makes objects survive at least one extra GC cycle (they get put on a finalization queue).
+## Finalization, Cleaners and Phantom References
+
+A note on finalization: Java has `Object.finalize()`, which the GC arranges to call before reclaiming an object. **Don't use it.** It was deprecated in Java 9 and has been **deprecated for removal** since Java 18 (JEP 421). It is unreliable (no guarantee when, or even whether, it runs), and it makes objects survive at least one extra GC cycle, because they must wait on a finalization queue. You can already run with `--finalization=disabled` to check that your application doesn't depend on it.
 
 Instead, use:
+
 - `try-with-resources` / Scala's `Using` for deterministic cleanup
-- `Cleaner` (Java 9+) for registering cleanup actions
+- `java.lang.ref.Cleaner` (Java 9+) as a safety net for native resources
 - `PhantomReference` for post-mortem notifications
 
 ```scala
@@ -245,17 +301,16 @@ Using(scala.io.Source.fromFile("data.txt")) { source =>
 // File is closed here, deterministically — not waiting for GC
 ```
 
+<div class="takeaways">
+
 ## Key Takeaways
 
-- The GC uses **tracing** from GC roots, not reference counting — circular references are handled correctly
-- Three core algorithms: **mark-sweep** (simple, causes fragmentation), **mark-compact** (no fragmentation, expensive), **copying** (fast, wastes half the space)
-- **Stop-the-world pauses** are the main latency concern; modern GCs minimize them
-- **Safepoints** are where the JVM can safely pause threads — counted loops might delay safepoints
-- **Generational collection** exploits the fact that most objects die young
-- Minor GC (young gen) uses copying and is fast; major GC (old gen) is slower
-- The **card table** tracks cross-generational references efficiently
-- Don't use `finalize()` — use `Using`, `Cleaner`, or `try-with-resources` instead
+- The GC uses **tracing** from GC roots, not reference counting, so circular garbage is handled correctly
+- Three core algorithms: **mark-sweep** (simple, causes fragmentation), **mark-compact** (no fragmentation, moving is expensive), **copying** (cost proportional to live data, needs spare space)
+- **Stop-the-world pauses** are the main latency concern; modern collectors do most work **concurrently**, using **barriers** to stay correct
+- **Safepoints** are where the JVM can pause threads; slow time-to-safepoint looks like a GC pause, so check `-Xlog:safepoint`
+- **Generational collection** exploits the fact that most objects die young: minor GCs copy the few survivors, major GCs are rarer and costlier
+- The **card table** (and G1's remembered sets) track old→young references without scanning the old generation
+- Don't use `finalize()` (deprecated for removal); use `Using`, `try-with-resources`, or `Cleaner`
 
----
-
-[← Previous: Object Layout](08-object-layout.md) · [Next: GC Tour →](10-gc-tour.md)
+</div>

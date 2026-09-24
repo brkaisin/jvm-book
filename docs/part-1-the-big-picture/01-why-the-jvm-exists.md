@@ -1,9 +1,5 @@
 # Chapter 1 — Why the JVM Exists
 
-[← Part I](index.md) · [Next: From Source Code to Execution →](02-from-source-to-execution.md)
-
----
-
 ## The World Before the JVM
 
 Imagine it's 1993. You write a program in C. You compile it on your Sun Microsystems workstation. It runs beautifully. Then your colleague tries to run it on their Windows PC. It doesn't work. Why? Because the C compiler turned your source code into machine instructions specific to *your* processor and *your* operating system.
@@ -22,20 +18,30 @@ That intermediate format became **bytecode**. That piece of software became the 
 
 Here's the model:
 
-```
-Your Source Code
-      │
-      ▼
-   Compiler        (runs once, on any machine)
-      │
-      ▼
-   Bytecode        (.class files — platform-independent)
-      │
-      ▼
-    JVM            (one per platform: Windows JVM, Linux JVM, macOS JVM...)
-      │
-      ▼
-  Machine Code     (native to the actual hardware)
+```text
+              ┌─────────────────────────────────────┐
+              │           Your source code          │
+              └──────────────────┬──────────────────┘
+                                 ▼
+              ┌─────────────────────────────────────┐
+              │               Compiler              │
+              │      runs once, on any machine      │
+              └──────────────────┬──────────────────┘
+                                 ▼
+              ┌─────────────────────────────────────┐
+              │               Bytecode              │
+              │  .class files, platform-independent │
+              └──────────────────┬──────────────────┘
+         ╭───────────────────────┼───────────────────────╮
+         ▼                       ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│ JVM for Windows │     │  JVM for Linux  │     │  JVM for macOS  │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         ▼                       ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   native code   │     │   native code   │     │   native code   │
+│  x86-64 or ARM  │     │  x86-64 or ARM  │     │  x86-64 or ARM  │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 The compiler produces bytecode — a set of instructions for a *virtual* machine, not a real one. The JVM on each platform knows how to execute those instructions on real hardware. You compile once, ship the bytecode, and it runs everywhere there's a JVM.
@@ -63,22 +69,25 @@ This is why Scala can seamlessly use Java libraries, and Java can call Scala cod
 
 Here's the family tree today:
 
-```
-         Source Languages
-    ┌──────┬──────┬──────┬──────┐
-  Java   Scala  Kotlin Clojure Groovy  (and many more)
-    │      │      │      │      │
-    ▼      ▼      ▼      ▼      ▼
-    └──────┴──────┴──────┴──────┘
-                  │
-            JVM Bytecode (.class files)
-                  │
-                  ▼
-                 JVM
-                  │
-            ┌─────┼─────┐
-            ▼     ▼     ▼
-          Linux macOS Windows
+```text
+┌──────┐  ┌───────┐  ┌────────┐  ┌─────────┐  ┌───────────────────────┐
+│ Java │  │ Scala │  │ Kotlin │  │ Clojure │  │ Groovy, and many more │
+└───┬──┘  └───┬───┘  └────┬───┘  └────┬────┘  └───────────┬───────────┘
+    ╰─────────┴───────────┴───────┬───┴───────────────────╯
+                                  ▼
+                   ┌─────────────────────────────┐
+                   │         JVM bytecode        │
+                   │         .class files        │
+                   └──────────────┬──────────────┘
+                                  ▼
+                   ┌─────────────────────────────┐
+                   │             JVM             │
+                   └──────────────┬──────────────┘
+            ╭─────────────────────┼─────────────────────╮
+            ▼                     ▼                     ▼
+    ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+    │     Linux     │     │     macOS     │     │    Windows    │
+    └───────────────┘     └───────────────┘     └───────────────┘
 ```
 
 ## What the JVM Actually Does
@@ -88,11 +97,14 @@ The JVM is more than just a bytecode interpreter. It's a complete runtime enviro
 1. **Bytecode execution** — Interprets and/or compiles bytecode to native machine code
 2. **Memory management** — Allocates objects and cleans up garbage (so you don't have to `free()` like in C)
 3. **Thread management** — Creates and schedules threads
-4. **Security** — Bytecode verification, sandboxing (remember Java applets?)
+4. **Safety** — Bytecode verification, so malformed or malicious code is rejected before it runs
 5. **Class loading** — Finds and loads your classes on demand (lazily!)
 6. **Monitoring** — Built-in tools for profiling, debugging, and diagnostics
 
 You get all of this for free, whether you write in Java, Scala, Kotlin, or Clojure.
+
+> [!NOTE]
+> The applet-era *sandbox* is history. The Security Manager that policed untrusted code was deprecated in Java 17 and permanently disabled in Java 24, and the Applet API itself was removed in Java 26. What remains, and matters every day, is the verifier and the memory safety it guarantees.
 
 ## The Platform vs. The Language
 
@@ -103,11 +115,11 @@ This distinction is crucial and often confused:
 | **Java** (the language)           | The programming language with its syntax, keywords, and rules                                          |
 | **JVM** (the virtual machine)     | The runtime that executes bytecode — language-agnostic                                                 |
 | **JDK** (the development kit)     | The JVM + compiler + tools + standard library                                                          |
-| **JRE** (the runtime environment) | The JVM + standard library, without the compiler (deprecated since Java 11 — now you just use the JDK) |
+| **JRE** (the runtime environment) | The JVM + standard library, without the compiler. Oracle stopped shipping a separate JRE with Java 11: today you install a JDK, or build a trimmed runtime with `jlink` |
 
 When someone says "Java," they might mean any of these. Context matters. In this book, when we say "JVM," we mean the runtime — the thing that runs your bytecode.
 
-> **Scala parallel**: When you install the JDK, you get the JVM that runs your Scala code. Scala adds its own compiler (`scalac`) and standard library (`scala-library.jar`), but the runtime underneath is the same JVM that Java uses. This is why your `build.sbt` specifies a JDK version — that determines which JVM features are available.
+> **Scala parallel**: When you install the JDK, you get the JVM that runs your Scala code. Scala adds its own compiler (`scalac`) and standard library (`scala-library.jar`), but the runtime underneath is the same JVM that Java uses. The JDK you run your build with (and the `-release` flag you pass to `scalac`) decides which JVM features and APIs you can use. Since Scala 3.8, the minimum is JDK 17.
 
 ## Why This Matters to You as a Scala Developer
 
@@ -119,18 +131,18 @@ Because **the JVM is not invisible**. It shapes your code in ways you encounter 
 - **Garbage collection pauses** — Your Scala service's p99 latency spike? Probably a GC pause.
 - **Stack overflows** — That deeply recursive function that crashes? The JVM stack has a finite size.
 - **Thread pool tuning** — Your Cats Effect or ZIO app's `ExecutionContext`? It's built on JVM threads.
-- **Startup time** — Your serverless function takes 3 seconds to cold-start? That's the JVM warming up.
+- **Startup time** — Your serverless function takes 3 seconds to cold-start? That's the JVM loading classes and warming up. (Modern JDKs can record that work once in an *AOT cache* and replay it on the next start; see [Chapter 20](../part-6-performance/20-graalvm.md).)
 
 Understanding the JVM doesn't make you a "Java developer." It makes you a developer who *understands the runtime*, and that knowledge pays dividends in every JVM language.
+
+<div class="takeaways">
 
 ## Key Takeaways
 
 - The JVM was created to solve the **platform portability** problem: compile once, run on any platform that has a JVM
 - The JVM executes **bytecode**, not Java source code — this makes it **language-agnostic**
 - Scala, Kotlin, Clojure, and many other languages compile to the same bytecode format
-- The JVM provides **much more** than bytecode execution: memory management, threading, security, monitoring
+- The JVM provides **much more** than bytecode execution: memory management, threading, verification, monitoring
 - Understanding the JVM makes you a better developer in *any* JVM language
 
----
-
-[← Part I](index.md) · [Next: From Source Code to Execution →](02-from-source-to-execution.md)
+</div>

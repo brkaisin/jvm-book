@@ -1,72 +1,80 @@
 # Chapter 15 — Threads on the JVM
 
-[← Part V](index.md) · [Next: The Java Memory Model →](16-java-memory-model.md)
-
----
-
 ## What Is a Thread?
 
-A thread is an independent path of execution within your program. When you run a JVM application, you already have multiple threads — even if you never created one yourself:
+A thread is an independent path of execution within your program. When you run a JVM application, you already have multiple threads, even if you never created one yourself:
 
 ```bash
 # Start a simple "Hello World" and dump its threads
-jstack <pid>
+jstack <pid>          # or: jcmd <pid> Thread.print
 ```
 
-You'll see:
-- **main** — Your application's entry point
-- **GC threads** — Several threads for garbage collection
-- **JIT compiler threads** — Compiling bytecode to native code
-- **Reference handler** — Processing weak/phantom references
-- **Finalizer** — Running `finalize()` methods (deprecated but still there)
-- **Signal dispatcher** — Handling OS signals
+You'll see, among others:
 
-## Thread = OS Thread (1:1 Mapping)
+- **main**: your application's entry point
+- **GC threads**: several threads for garbage collection (how many depends on the collector and the CPU count)
+- **C1/C2 CompilerThreads**: the JIT compilers turning bytecode into native code
+- **Reference Handler**: enqueues weak/soft/phantom references once the GC has cleared them
+- **Finalizer**: runs `finalize()` methods. Finalization is deprecated for removal (JEP 421, Java 18), but the thread is still there
+- **Common-Cleaner**: runs `java.lang.ref.Cleaner` actions, the modern replacement for finalizers
+- **Signal Dispatcher**: handles OS signals (for example the `SIGQUIT` that triggers a thread dump)
 
-Since Java 1.2 (1998), every JVM `Thread` maps directly to an **operating system thread** (also called a platform thread or kernel thread). The OS scheduler manages them.
+## Platform Threads: a 1:1 Mapping
 
-```
-JVM Thread 1  ←→  OS Thread 1  ←→  CPU Core 0
-JVM Thread 2  ←→  OS Thread 2  ←→  CPU Core 1
-JVM Thread 3  ←→  OS Thread 3  ←→  CPU Core 0  (context-switched)
+Every classic `java.lang.Thread`, now called a **platform thread**, maps directly to an **operating system thread** (a kernel thread). The JVM doesn't schedule them: the OS does.
+
+```text
+ Java threads     OS threads              CPU cores
+
+┌──────────┐     ┌─────────────┐        ┌────────────┐
+│ Thread 1 │─────│ OS thread 1 │───────▶│ CPU core 0 │◀╌╌╌╌╌╌╌╌╌┐
+└──────────┘     └─────────────┘        └────────────┘          ┆
+                                                                ┆
+┌──────────┐     ┌─────────────┐        ┌────────────┐          ┆
+│ Thread 2 │─────│ OS thread 2 │───────▶│ CPU core 1 │          ┆
+└──────────┘     └─────────────┘        └────────────┘          ┆
+                                                                ┆
+┌──────────┐     ┌─────────────┐                                ┆
+│ Thread 3 │─────│ OS thread 3 │╌╌ context-switched onto core 0 ┘
+└──────────┘     └─────────────┘
 ```
 
 This has implications:
-- **Cost**: Each OS thread consumes ~1 MB of stack memory (configurable with `-Xss`)
-- **Limit**: Creating 10,000 threads means 10 GB of stack memory alone
-- **Scheduling**: Thread switching is managed by the OS kernel — relatively expensive (~1–10 µs per switch)
-- **Scaling**: You typically can't create more than a few thousand threads
 
-> **Before Java 1.2**: The original JVM used "green threads" — user-space threads managed by the JVM, multiplexed onto a single OS thread. This was simpler but couldn't use multiple CPU cores. The switch to native threads enabled true parallelism.
+- **Memory**: each thread reserves a stack, 1 MB by default on 64-bit Linux and macOS (configurable with `-Xss`). This is mostly *reserved* address space that the OS commits lazily, but it adds up, together with the kernel's own per-thread structures.
+- **Scheduling**: switching between threads goes through the kernel and costs on the order of microseconds, plus the cache misses that follow.
+- **Scaling**: a few thousand threads are fine. Hundreds of thousands are not.
+
+That last point is exactly the problem that virtual threads solve ([Chapter 18](18-virtual-threads.md)). Virtual threads are also `java.lang.Thread` instances, but the JVM multiplexes many of them onto a few platform threads.
+
+> [!NOTE]
+> **Before native threads**: the very first JVMs used "green threads", user-space threads managed by the JVM and multiplexed onto a single OS thread. That was simple, but it couldn't use more than one CPU core. Around Java 1.2–1.3 the JVMs switched to native threads, which gave true parallelism. Virtual threads bring back the good part of the idea (cheap user-mode threads) without the single-core limitation.
 
 ## Creating Threads
 
 ### Java
 
 ```java
-// Option 1: Subclass Thread
-Thread t = new Thread() {
-    @Override
-    public void run() {
-        System.out.println("Hello from thread: " + Thread.currentThread().getName());
-    }
-};
+// Classic: pass a Runnable (preferred over subclassing Thread)
+Thread t = new Thread(() ->
+    System.out.println("Hello from " + Thread.currentThread().getName()));
 t.start();
 
-// Option 2: Runnable (preferred)
-Thread t = new Thread(() -> {
-    System.out.println("Hello from thread: " + Thread.currentThread().getName());
-});
-t.start();
+// Builder API (Java 21+): same thing, more options
+Thread worker = Thread.ofPlatform()
+    .name("worker-", 0)        // worker-0, worker-1, ...
+    .daemon(true)
+    .start(() -> System.out.println("Hi from " + Thread.currentThread().getName()));
+
+// And its lightweight sibling (see Chapter 18)
+Thread vt = Thread.ofVirtual().start(() -> System.out.println("Hi from a virtual thread"));
 ```
 
 ### Scala
 
 ```scala
 // Direct thread creation (rarely used in practice)
-val t = new Thread(() => {
-  println(s"Hello from thread: ${Thread.currentThread().getName}")
-})
+val t = Thread(() => println(s"Hello from ${Thread.currentThread().getName}"))
 t.start()
 
 // In practice, you'd use an ExecutionContext, Future, or an effect system
@@ -79,53 +87,76 @@ val f = Future {
 }
 ```
 
-> **In practice**: You almost never create threads directly. You use thread pools (Chapter 17), Scala `Future`s, or effect systems (Cats Effect, ZIO). Direct thread creation is like manual memory management — you *can* do it, but you'll regret it.
+> [!TIP]
+> You almost never create platform threads directly. Use thread pools ([Chapter 17](17-juc-toolbox.md)), Scala `Future`s, effect systems (Cats Effect, ZIO), or, for blocking I/O-heavy work, one virtual thread per task. Creating raw threads by hand is like manual memory management: you *can* do it, but you'll regret it.
 
 ## Thread Lifecycle
 
-A thread goes through these states:
+`Thread.getState()` returns one of six states:
 
-```
-    ┌───────┐
-    │  NEW  │  (created, not yet started)
-    └───┬───┘
-        │ start()
-    ┌───▼──────┐
-    │ RUNNABLE │  (ready to run, or actually running on a CPU)
-    └───┬──────┘
-        │
-   ┌────┼──────────────────────────┐
-   │    │                          │
-   ▼    ▼                          ▼
-┌──────────┐  ┌─────────────┐  ┌──────────────────┐
-│ BLOCKED  │  │  WAITING    │  │ TIMED_WAITING    │
-│          │  │             │  │                  │
-│ Waiting  │  │ wait()      │  │ sleep(millis)    │
-│ for a    │  │ join()      │  │ wait(millis)     │
-│ monitor  │  │ park()      │  │ parkNanos(nanos) │
-│ lock     │  │             │  │                  │
-└────┬─────┘  └──────┬──────┘  └────────┬─────────┘
-     │               │                  │
-     └───────────────┼──────────────────┘
-                     │
-              ┌──────▼──────┐
-              │  RUNNABLE   │
-              └──────┬──────┘
-                     │ run() completes
-              ┌──────▼──────┐
-              │ TERMINATED  │
-              └─────────────┘
+```text
+  ┌─────┐
+  │ NEW │
+  └─────┘
+     │ start()
+     ▼
+┌──────────┐      monitor busy      ┌───────────────┐
+│          │───────────────────────▶│    BLOCKED    │
+│          │◀───────────────────────│               │
+│          │    monitor acquired    └───────────────┘
+│          │
+│          │   wait / join / park   ┌───────────────┐
+│          │───────────────────────▶│    WAITING    │
+│ RUNNABLE │◀───────────────────────│               │
+│          │    notify / unpark     └───────────────┘
+│          │
+│          │   sleep / timed wait   ┌───────────────┐
+│          │───────────────────────▶│ TIMED_WAITING │
+│          │◀───────────────────────│               │
+│          │   timeout / wake-up    └───────────────┘
+│          │
+└──────────┘
+     │
+     │ run() ends
+     ▼
+┌────────────┐
+│ TERMINATED │
+└────────────┘
 ```
 
-- **BLOCKED**: Waiting to enter a `synchronized` block (another thread holds the lock)
-- **WAITING**: Waiting indefinitely for another thread's action (`Object.wait()`, `Thread.join()`, `LockSupport.park()`)
-- **TIMED_WAITING**: Like WAITING, but with a timeout
+- **NEW**: created, `start()` not called yet.
+- **RUNNABLE**: ready to run *or* actually running. The JVM doesn't distinguish the two, and a thread blocked in a native socket read also shows as RUNNABLE.
+- **BLOCKED**: waiting to enter a `synchronized` block or method because another thread holds the monitor.
+- **WAITING**: waiting indefinitely for another thread's action (`Object.wait()`, `Thread.join()`, `LockSupport.park()`, which is what all `java.util.concurrent` locks use underneath).
+- **TIMED_WAITING**: like WAITING, but with a timeout.
+- **TERMINATED**: `run()` has finished.
 
-You can inspect thread states with:
-```bash
-jstack <pid>           # Dump all threads and their states
-jcmd <pid> Thread.print  # Same, using jcmd
+A thread that wakes up from `wait()` must re-acquire the monitor, so it can briefly pass through BLOCKED on its way back to RUNNABLE.
+
+## Stopping a Thread: Interruption
+
+There is exactly one supported way to ask a thread to stop: **interrupt it** and let it cooperate.
+
+```java
+Thread worker = Thread.ofPlatform().start(() -> {
+    while (!Thread.currentThread().isInterrupted()) {
+        try {
+            doSomeWork();
+            Thread.sleep(100);          // blocking calls throw InterruptedException
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();  // restore the flag, then exit
+            return;
+        }
+    }
+});
+
+worker.interrupt();   // a polite request, not a kill
 ```
+
+> [!WARNING]
+> The old brute-force methods are gone. `Thread.suspend()` and `Thread.resume()` started throwing `UnsupportedOperationException` in Java 20 and were removed in Java 23. `Thread.stop()` also started throwing in Java 20 and was removed in Java 26. They had been deprecated since 1998 because stopping a thread at an arbitrary point can leave shared objects half-updated. Old binaries that still call them now fail with `NoSuchMethodError`.
+
+In the same spirit of clean-up, the Security Manager can no longer be enabled since Java 24 (JEP 486), so old advice about thread permissions or sandboxing threads with `ThreadGroup` no longer applies. Thread groups still exist, but they're a legacy grouping mechanism you can ignore.
 
 ## Synchronization: `synchronized`
 
@@ -137,7 +168,7 @@ public class Counter {
     private int count = 0;
 
     public synchronized void increment() {
-        count++;  // Read + modify + write — must be atomic
+        count++;  // Read + modify + write: must be atomic
     }
 
     public synchronized int getCount() {
@@ -160,42 +191,65 @@ class Counter:
   }
 ```
 
+In Scala, `synchronized` isn't a keyword: it's a method available on every `AnyRef` (so `synchronized { … }` inside a class means `this.synchronized { … }`). It compiles to the same bytecode as Java's `synchronized` block.
+
 ### How `synchronized` Works at the JVM Level
 
-Every object in the JVM can act as a lock (also called a **monitor**). When you enter a `synchronized` block, the JVM:
+Every object in the JVM can act as a lock, also called a **monitor**. When you enter a `synchronized` block, the JVM:
 
 1. Attempts to acquire the object's monitor
 2. If successful, executes the block
-3. Releases the monitor when the block exits (even if an exception is thrown)
+3. Releases the monitor when the block exits, even if an exception is thrown
 
-At the bytecode level:
+`synchronized` blocks compile to a pair of bytecodes (the compiler also adds an exception handler that runs `monitorexit` on the way out). `synchronized` *methods* don't use these instructions: they're marked with the `ACC_SYNCHRONIZED` flag and the JVM does the same thing implicitly.
 
-```
+```text
 monitorenter    // Acquire the lock
 // ... critical section ...
 monitorexit     // Release the lock
 ```
 
+Monitors are **reentrant**: a thread that already holds a monitor can enter it again (a `synchronized` method calling another `synchronized` method on the same object doesn't deadlock).
+
+> [!NOTE]
+> Only objects with **identity** have a monitor. With Valhalla's value objects (a preview in JDK 28), `synchronized` on a value object throws `IdentityException`. Under that preview, `Integer` and friends become value classes, so the old anti-pattern of synchronizing on a boxed number turns from "subtly broken" into "fails fast". See [Chapter 14](../part-4-type-system/14-value-types-valhalla.md).
+
 ### Lock States and Optimization
 
-The JVM optimizes locking through several levels:
+Most locks are never contended, so HotSpot works hard to make the uncontended case cheap:
 
-1. **Biased locking** (deprecated since Java 15, removed Java 18): When only one thread ever locks the object, the lock is "biased" toward that thread — nearly zero overhead.
-
-2. **Lightweight locking (thin lock)**: When there's no contention, uses a CAS (Compare-And-Swap) operation on the mark word. Very fast.
-
-3. **Heavyweight locking (fat lock)**: When contention is detected, inflates to a full OS mutex. Thread goes to BLOCKED state and is rescheduled by the OS. Expensive.
-
+```text
+   ┌──────────────────────────┐
+   │ Unlocked                 │◀───────────────────────┐
+   └──────────────────────────┘                        │
+        │              ▲                               │
+        │ a thread     │ released                      │
+        │ locks it, no │                               │
+        │ contention   │                               │
+        │              │                               │
+        ▼              │                               │
+   ┌──────────────────────────┐                        │
+   │ Lightweight (fast) lock  │                        │ idle for
+   │ a CAS on the mark word   │                        │ a while
+   └──────────────────────────┘                        │
+        │                                              │
+        │ another thread wants it                      │
+        │ or wait() is called                          │
+        ▼                                              │
+   ┌──────────────────────────┐                        │
+   │ Inflated monitor         │────────────────────────┘
+   │ an ObjectMonitor,        │
+   │ spin then park           │
+   └──────────────────────────┘
 ```
-Single thread using lock:
-  → Biased lock (nearly free)
 
-Two threads, no real contention:
-  → Lightweight lock (CAS, fast)
+1. **Lightweight locking**: when there's no contention, acquiring the lock is a single CAS (compare-and-swap) on the object's header, and the thread records the object on a small per-thread *lock stack*. This scheme became the default in Java 23 and the older "stack-locking" implementation was deprecated in Java 24.
+2. **Inflated (heavyweight) locking**: when threads actually contend, or someone calls `wait()`, the lock is inflated into a full `ObjectMonitor` with a queue of waiting threads. Contending threads spin briefly, hoping the owner releases soon, then park (state BLOCKED) and let the OS schedule something else. That is the expensive path.
 
-Multiple threads fighting for the lock:
-  → Heavyweight lock (OS mutex, expensive)
-```
+> [!NOTE]
+> You may read about **biased locking** in older material: a lock "biased" toward the one thread that always used it. It was disabled by default and deprecated in Java 15 (JEP 374) and its code was removed in Java 18. Modern CPUs made plain CAS cheap enough that the complexity no longer paid off.
+
+The header bits involved (the *mark word*) are described in [Chapter 8](../part-3-memory-and-gc/08-object-layout.md#the-mark-word).
 
 ## Common Threading Problems
 
@@ -223,11 +277,12 @@ lockB.synchronized {
   }
 }
 
-// DEADLOCK — both threads wait forever
+// DEADLOCK: both threads wait forever
 ```
 
-The JVM can detect deadlocks — `jstack` will report them:
-```
+The usual cure is to always acquire locks in the same global order. The JVM can detect monitor deadlocks, and `jstack` reports them at the end of the dump:
+
+```text
 Found one Java-level deadlock:
 =============================
 "Thread-1":
@@ -243,45 +298,52 @@ Found one Java-level deadlock:
 ```scala
 var counter = 0
 
-// Two threads incrementing the same counter without synchronization
-// counter++ is actually: read → increment → write
-// These can interleave, losing updates
+// Two threads incrementing the same counter without synchronization.
+// counter += 1 is actually: read → increment → write
+// These steps can interleave, losing updates:
 
 // Thread 1: reads 5, increments to 6, writes 6
 // Thread 2: reads 5 (before Thread 1's write!), increments to 6, writes 6
-// Result: 6 instead of 7 — lost update!
+// Result: 6 instead of 7, a lost update!
 ```
 
 ### Starvation
 
-A thread can't make progress because other threads keep getting the lock first. Less common but insidious.
+A thread can't make progress because other threads keep getting the lock (or the CPU) first. Less common but insidious. Fair locks (`new ReentrantLock(true)`) trade some throughput for protection against it.
 
 ## Observing Threads: `jstack`
 
-`jstack` is invaluable for diagnosing threading issues. Here's a real example of output:
+`jstack` (or `jcmd <pid> Thread.print`) is invaluable for diagnosing threading issues. Here's what the output looks like:
 
-```
-"http-handler-1" #12 daemon prio=5 os_prio=0 tid=0x00007f... nid=0x1a03 runnable [0x00007f...]
+```text
+"http-handler-1" #12 daemon prio=5 os_prio=0 cpu=512.30ms elapsed=91.02s tid=0x00007f... nid=6659 runnable [0x00007f...]
    java.lang.Thread.State: RUNNABLE
         at com.example.Handler.process(Handler.scala:42)
         at com.example.Server.handle(Server.scala:18)
         ...
 
-"db-pool-1" #15 daemon prio=5 os_prio=0 tid=0x00007f... nid=0x1a06 waiting on condition [0x00007f...]
+"db-pool-1" #15 daemon prio=5 os_prio=0 cpu=3.10ms elapsed=91.00s tid=0x00007f... nid=6662 waiting on condition [0x00007f...]
    java.lang.Thread.State: TIMED_WAITING (parking)
         at jdk.internal.misc.Unsafe.park(Native Method)
         - parking to wait for <0x000000076ab04e10> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
-        at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:252)
+        at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:269)
         ...
 ```
 
 This tells you:
-- Thread name, priority, and daemon status
+
+- Thread name, priority, daemon status, and the CPU time it has used so far
 - Thread state (RUNNABLE, WAITING, BLOCKED, etc.)
-- Full stack trace — exactly what code is running or blocked
+- The full stack trace: exactly what code is running or blocked
 - What lock or condition the thread is waiting on
 
-> **Scala tip**: If you use Cats Effect or ZIO, the actual stack traces can be misleading because fibers hop between threads. Both libraries provide their own fiber dump mechanisms that show the logical fiber state.
+> [!TIP]
+> `jstack` only shows platform threads. To include virtual threads (there may be millions), use the newer thread dump, which can write JSON:
+> ```bash
+> jcmd <pid> Thread.dump_to_file -format=json threads.json
+> ```
+
+> **Scala tip**: if you use Cats Effect or ZIO, the JVM stack traces can be misleading because fibers hop between threads. Both libraries provide their own fiber dumps that show the logical fiber state (Cats Effect prints one on `SIGUSR1`/`SIGINFO`, and ZIO has `Fiber.dumpAll`).
 
 ## Daemon Threads
 
@@ -289,24 +351,25 @@ Threads are either **daemon** or **non-daemon**:
 
 ```java
 Thread t = new Thread(runnable);
-t.setDaemon(true);  // Daemon thread
+t.setDaemon(true);  // must be called before start()
 t.start();
 ```
 
-- **Non-daemon threads**: The JVM won't exit until all non-daemon threads finish. Your `main` thread is non-daemon.
-- **Daemon threads**: The JVM can exit even if daemon threads are still running. GC threads, JIT threads are daemon threads.
+- **Non-daemon threads**: the JVM won't exit until all non-daemon threads finish. Your `main` thread is non-daemon.
+- **Daemon threads**: the JVM can exit even if daemon threads are still running (they're simply abandoned). GC and JIT threads are daemons, and so is every virtual thread.
 
-In Scala/Cats Effect/ZIO, the library manages thread pools. You typically don't set daemon status manually.
+In Scala with Cats Effect or ZIO, the library manages its thread pools, so you typically don't set daemon status manually.
+
+<div class="takeaways">
 
 ## Key Takeaways
 
-- Each JVM `Thread` is an **OS thread** — ~1 MB stack memory, expensive to create and switch
-- Threads go through states: NEW → RUNNABLE → (BLOCKED/WAITING/TIMED_WAITING) → TERMINATED
-- `synchronized` acquires an object's **monitor** — optimized from biased → lightweight → heavyweight locking
+- A **platform thread** is an OS thread: it reserves a sizeable stack, and the kernel schedules it. Thousands are fine, millions are not (that's what virtual threads are for)
+- Threads move through six states: NEW → RUNNABLE ⇄ (BLOCKED / WAITING / TIMED_WAITING) → TERMINATED
+- Stop threads by **interruption**. `Thread.stop`, `suspend` and `resume` have been removed
+- `synchronized` acquires an object's **monitor**. HotSpot makes the uncontended case a cheap CAS and inflates to a full monitor only under contention. Biased locking is gone
 - **Deadlocks**, **race conditions**, and **starvation** are the classic threading bugs
-- `jstack` is your go-to tool for diagnosing thread issues
-- In practice, **don't create threads directly** — use thread pools, `Future`, or effect systems
+- `jstack` / `jcmd Thread.print` are your go-to tools. Use `jcmd Thread.dump_to_file` when virtual threads are involved
+- In practice, **don't create threads directly**: use executors, `Future`, effect systems, or virtual threads
 
----
-
-[← Part V](index.md) · [Next: The Java Memory Model →](16-java-memory-model.md)
+</div>

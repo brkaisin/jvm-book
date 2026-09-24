@@ -1,16 +1,12 @@
 # Chapter 22 — Common Performance Pitfalls
 
-[← Previous: Monitoring](21-monitoring.md) · [Next: Part VII — Ecosystem →](../part-7-ecosystem/index.md)
-
----
-
 ## The Traps That Wait for You
 
 Performance pitfalls on the JVM are often invisible at the source level. The code looks clean, but the bytecode or runtime behavior hides expensive operations. Let's catalog the most common ones.
 
 ## Autoboxing: The Silent Killer
 
-Every time a primitive is used where an object is expected, the JVM creates a wrapper object. This is **autoboxing**:
+Every time a primitive is used where an object is expected, a wrapper object is created. This is **autoboxing**. (Small values, `-128` to `127` by default, come from a cache, so they don't allocate; everything else does.)
 
 ```java
 // Java
@@ -42,9 +38,12 @@ val numbers: List[Int] = (0 until 1_000_000).toList
 
 ```bash
 # With async-profiler's allocation mode
-./asprof -d 30 -e alloc -f alloc.html <pid>
+asprof -d 30 -e alloc -f alloc.html <pid>
 
-# Look for java.lang.Integer, java.lang.Long, etc. in the flame graph
+# Or with JFR
+jfr view allocation-by-class recording.jfr
+
+# Look for java.lang.Integer, java.lang.Long, etc.
 ```
 
 ### Fixing Boxing
@@ -61,9 +60,12 @@ val arr = Array.fill(1_000_000)(0)   // Array[Int] → int[], no boxing
 val result = data.view.filter(_ > 0).map(_ * 2).sum  // One pass, less boxing
 ```
 
+> [!NOTE]
+> Boxing is also what [Project Valhalla](../part-4-type-system/14-value-types-valhalla.md) is about. With value classes (JEP 401, a preview in JDK 28), `Integer` and friends become value objects without identity, which lets the JVM flatten and scalarize them much more freely. That's future work; for now, boxing costs what it has always cost.
+
 ## Megamorphic Call Sites
 
-We covered this in Chapter 19, but it's worth emphasizing as a pitfall. A call site is **megamorphic** when 3+ different types are observed:
+We covered this in [Chapter 19](19-jit-deep-dive.md#inlining-and-virtual-calls), but it's worth emphasizing as a pitfall. A call site is **megamorphic** when 3+ different types are observed (and none of them dominates):
 
 ```scala
 trait Processor:
@@ -82,15 +84,16 @@ processors.foreach(_.process(data))
 ### Detecting Megamorphic Sites
 
 ```bash
-java -XX:+PrintCompilation -XX:+TraceTypeProfile -jar myapp.jar
+# Inlining decisions: look for "virtual call" or "no static binding" at hot call sites
+java -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlining -jar myapp.jar
 ```
 
-Or use JFR/async-profiler and look for vtable/itable lookups in hot paths.
+Or look for `itable stub` / `vtable stub` frames in an async-profiler flame graph of the hot path.
 
 ### Fixing It
 
 - Reduce the number of types at a call site (restructure code)
-- Use pattern matching with sealed types instead of virtual dispatch
+- Use pattern matching with sealed types instead of virtual dispatch (for a handful of cases)
 - Separate hot paths by type
 
 ```scala
@@ -99,7 +102,7 @@ sealed trait Shape
 case class Circle(r: Double) extends Shape
 case class Square(s: Double) extends Shape
 
-// Pattern matching is often faster than virtual dispatch for sealed types:
+// With a few cases, a match (a chain of type checks) can beat a megamorphic call:
 def area(shape: Shape): Double = shape match
   case Circle(r) => math.Pi * r * r
   case Square(s) => s * s
@@ -123,7 +126,7 @@ Every concatenation created a `StringBuilder`, allocated a `char[]`, and copied 
 
 ### The New Way (Java 9+)
 
-Java 9+ compiles string concatenation using `invokedynamic`, which the JVM can optimize much more aggressively — potentially avoiding `StringBuilder` entirely and computing the exact buffer size upfront.
+Java 9+ compiles string concatenation using `invokedynamic` (JEP 280), and the JVM generates the concatenation code at runtime. It computes the exact buffer size upfront and avoids the intermediate `StringBuilder` copies.
 
 ### The Loop Trap (Still Relevant)
 
@@ -173,7 +176,7 @@ val result = data
 ### Fix: Use Views
 
 ```scala
-// Creates only ONE collection:
+// Only ONE collection for the filter/map/flatMap part (sortBy still needs a real one):
 val result = data.view
   .filter(_.isActive)
   .map(_.transform())
@@ -213,7 +216,7 @@ list.foldLeft(0)((acc, x) => acc + f(x))  // No intermediate collection
 
 ## `lazy val` Locking Overhead
 
-In Scala 2, `lazy val` uses double-checked locking with `synchronized`:
+In Scala 2, `lazy val` uses double-checked locking with `synchronized` (a volatile flag, then a lock on `this` in a separate `lzycompute` method):
 
 ```scala
 lazy val expensive = computeSomething()
@@ -237,9 +240,9 @@ public Object expensive() {
 }
 ```
 
-Every access checks the volatile flag. In hot paths, this overhead adds up.
+Every access checks the volatile flag. In hot paths, this overhead adds up. (On JDK 24+, the `synchronized` part no longer pins virtual threads: see [below](#virtual-threads-synchronized-no-longer-pins-java-24).)
 
-**Scala 3** improved this with a more efficient implementation, but `lazy val` still has overhead compared to eager `val`.
+**Scala 3** uses a different, lock-free scheme (a compare-and-set on the field, with a marker object while initialization is in progress), and Scala 3.3 introduced a reworked implementation. Still, every access reads a volatile field and checks its state, so a `lazy val` is never quite as cheap as an eager `val`.
 
 ### When to Worry
 
@@ -249,6 +252,7 @@ Every access checks the volatile flag. In hot paths, this overhead adds up.
 ### Fix
 
 - Use eager `val` if the initialization cost is trivial or always needed
+- Hoist the value into a local `val` before a hot loop, so the loop doesn't re-check it on every iteration
 - For Scala 2, consider `@volatile var` with manual initialization if `lazy val` is a bottleneck
 
 ## Implicit Conversions and Allocations
@@ -275,15 +279,15 @@ In Scala 3, extension methods are first-class and don't use implicit conversions
 extension (i: Int)
   def isEven: Boolean = i % 2 == 0
 
-42.isEven  // Compiled to a static method call — zero allocation, always
+42.isEven  // Compiled to a plain method call — no wrapper object, ever
 ```
 
 ## Collection Pitfalls
 
-### `List.apply` vs `::` for Building Lists
+### Indexed Access on `List`
 
 ```scala
-// This is O(n) for each element access — List is a linked list!
+// This is O(n) for each element access: List is a linked list!
 val first = myList(0)  // Walks 0 links
 val tenth = myList(9)  // Walks 9 links
 
@@ -305,12 +309,69 @@ if (list.nonEmpty) { ... }    // Checks only the head
 ### `Map.mapValues` Returns a View (Scala 2.13+)
 
 ```scala
-val mapped = myMap.mapValues(_ * 2)
-// This is a VIEW — the function is called every time you access a value!
+val mapped = myMap.mapValues(_ * 2)   // deprecated in 2.13
+// This is a VIEW (a MapView): the function runs again on every access!
 
-// Force it if you'll access values multiple times:
+// Be explicit, and force it if you'll access values multiple times:
 val mapped = myMap.view.mapValues(_ * 2).toMap
+// or simply:
+val mapped = myMap.map((k, v) => k -> v * 2)
 ```
+
+## Pitfalls of the Modern JVM
+
+The JVM of 2026 has changed a few assumptions that older articles (and older habits) rely on. None of these are bugs, but each can surprise you after an upgrade.
+
+### Object Size Math Has Changed <span class="since">Java 27</span>
+
+Since JDK 27, **compact object headers** are on by default (JEP 534): an object header is 8 bytes instead of 12, and an array header 12 bytes instead of 16 (see [Chapter 8](../part-3-memory-and-gc/08-object-layout.md)). Any memory estimate that hard-codes "12 bytes of header" is now wrong:
+
+| Object                  | JDK ≤ 26 default | JDK 27 default |
+| ----------------------- | ---------------- | -------------- |
+| `new Object()`          | 16 bytes         | 8 bytes        |
+| `Integer`               | 16 bytes         | 16 bytes       |
+| `Long`, `Double`        | 24 bytes         | 16 bytes       |
+| `case class P(x: Int, y: Int)` | 24 bytes  | 16 bytes       |
+
+Two practical consequences:
+- **Capacity planning and cache sizing** based on per-object estimates should be redone (with JOL, or with a heap histogram) rather than recalculated by hand. Heaps full of small objects typically shrink noticeably (JEP 534 reports 22% less heap on SPECjbb2015).
+- **Before/after comparisons across JDK versions** now include this change. If you need the old layout for a fair comparison (or because of a problem), `-XX:-UseCompactObjectHeaders` turns it off.
+
+### G1 Is Now the Default in Small Containers <span class="since">Java 27</span>
+
+Until JDK 26, the JVM picked **Serial GC** on machines it didn't consider "server class": fewer than 2 CPUs or less than 1792 MB of memory. That describes a lot of containers, so many small services silently ran on Serial. Since JDK 27 (JEP 523), **G1 is the default everywhere**.
+
+For most apps this is an improvement (shorter pauses on larger heaps), but it can change footprint and throughput on tiny containers. If you measured and Serial was better for you, say so explicitly:
+
+```bash
+java -XX:+UseSerialGC -XX:MaxRAMPercentage=75 -jar myapp.jar
+```
+
+> [!TIP]
+> Whatever the collector, set heap size relative to the container (`-XX:MaxRAMPercentage`) and check what the JVM actually chose with `jcmd <pid> VM.flags` or `java -Xlog:gc -version`.
+
+### Virtual Threads: `synchronized` No Longer Pins <span class="since">Java 24</span>
+
+On JDK 21–23, blocking inside `synchronized` pinned a virtual thread to its carrier, and the standard advice was to replace `synchronized` with `ReentrantLock`. Since JDK 24 (JEP 491) that's no longer necessary: `synchronized` blocks, `Object.wait()`, and Scala 2's `lazy val` locks all let the virtual thread unmount. Pinning remains only in rare cases involving native code and class initialization ([Chapter 18](../part-5-concurrency/18-virtual-threads.md#pinning-mostly-solved)).
+
+The pitfall now is the opposite one: spending effort on rewrites that no longer help. If you're still on JDK 21 LTS, the old advice applies; either way, check with JFR (`jfr view pinned-threads recording.jfr`) before changing code.
+
+### Integrity by Default: New Warnings
+
+The JDK is steadily closing the doors that let libraries bypass Java's rules. Each step starts with a **warning on standard error** at first use, then a future release turns it into an error:
+
+| Since   | What triggers a warning                                    | Control flag                                 |
+| ------- | ---------------------------------------------------------- | -------------------------------------------- |
+| JDK 24  | Memory-access methods of `sun.misc.Unsafe` (JEP 498)       | `--sun-misc-unsafe-memory-access=allow\|warn\|debug\|deny` |
+| JDK 24  | Loading or calling native code via JNI (JEP 472)           | `--enable-native-access=ALL-UNNAMED`         |
+| JDK 26  | Mutating a `final` field with deep reflection (JEP 500)    | `--enable-final-field-mutation=ALL-UNNAMED`  |
+
+These are not performance problems in themselves, but they matter for performance work:
+
+- **Final fields and the JIT.** The JIT can't treat instance `final` fields as constants because reflection might change them ([Chapter 19](19-jit-deep-dive.md#constants-the-jit-can-trust)). JEP 500 is the first step towards "final means final", which will let the JVM optimize them. Libraries that set `final` fields reflectively (some serialization, dependency-injection, and mocking libraries) now print a warning such as `WARNING: Final field f in p.C has been mutated by class ...`; the default will eventually become `deny` (`--illegal-final-field-mutation=allow|warn|debug|deny` controls it today). Serialization libraries are expected to move to `sun.reflect.ReflectionFactory`; records and hidden classes were never mutable this way.
+- **Old fast paths going away.** Many high-performance libraries used `sun.misc.Unsafe` for off-heap memory and field access. The supported replacements are `VarHandle` (for field and array access) and the FFM API's `MemorySegment` (for off-heap memory), which the JIT optimizes just as well. Upgrading such libraries is part of any JDK 24+ migration.
+
+> **Scala note**: Code compiled with Scala 3 before 3.8 implements `lazy val` through `scala.runtime.LazyVals`, which uses `sun.misc.Unsafe`. On JDK 24+ this prints a warning like `sun.misc.Unsafe::objectFieldOffset has been called by scala.runtime.LazyVals$` the first time a lazy val is used. Scala 3.8 (and the new 3.9 LTS) generate lazy vals without `Unsafe`, but libraries compiled with older Scala 3 versions can still trigger the warning until they are republished. It's harmless for now; `--sun-misc-unsafe-memory-access=allow` silences it while you upgrade.
 
 ## Benchmarking Correctly with JMH
 
@@ -326,7 +387,9 @@ val elapsed = System.currentTimeMillis() - start
 Use **JMH (Java Microbenchmark Harness)**:
 
 ```scala
+import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations.*
+import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -335,6 +398,12 @@ import org.openjdk.jmh.annotations.*
 @Measurement(iterations = 10, time = 1)
 @Fork(2)
 class MyBenchmark:
+
+  var data: List[Int] = Nil
+
+  @Setup
+  def setup(): Unit =
+    data = List.range(0, 10_000)
 
   @Benchmark
   def listMap(bh: Blackhole): Unit =
@@ -350,28 +419,37 @@ JMH handles:
 - Dead code elimination prevention (`Blackhole`)
 - Fork isolation (separate JVM per run)
 - Statistical analysis (mean, error, confidence intervals)
+- Profilers: `-prof gc` shows allocated bytes per operation, which is often more telling than the time
+
+In sbt, use the **sbt-jmh** plugin (`Jmh/run`). Keep the JDK and flags identical between runs you compare: on JDK 27, compact object headers are on by default, so a benchmark comparing JDK 25 and 27 measures that change too.
 
 ## Quick Checklist
 
-| Pitfall                   | Detection               | Fix                                                 |
-| ------------------------- | ----------------------- | --------------------------------------------------- |
-| Autoboxing                | Allocation profiler     | Use `Array[Int]`, views, specialized collections    |
-| Megamorphic dispatch      | `-XX:+PrintCompilation` | Sealed types, pattern matching, reduce polymorphism |
-| String concat in loops    | Code review             | `StringBuilder`, `mkString`                         |
-| Intermediate collections  | Allocation profiler     | Views, iterators, fold                              |
-| `lazy val` in hot path    | CPU profiler            | Eager `val`                                         |
-| `List.length` / `List(i)` | Code review             | `nonEmpty`, `Vector` for indexed access             |
-| Wrong benchmark           | Common sense            | Use JMH                                             |
+| Pitfall                      | Detection                   | Fix                                                 |
+| ---------------------------- | --------------------------- | --------------------------------------------------- |
+| Autoboxing                   | Allocation profiler         | `Array[Int]`, views, specialized collections        |
+| Megamorphic dispatch         | `PrintInlining`, flame graph | Sealed types, pattern matching, less polymorphism  |
+| String concat in loops       | Code review                 | `StringBuilder`, `mkString`                         |
+| Intermediate collections     | Allocation profiler         | Views, iterators, fold                              |
+| `lazy val` in hot path       | CPU profiler                | Eager `val`, hoist into a local                     |
+| `List.length` / `List(i)`    | Code review                 | `nonEmpty`, `Vector` for indexed access             |
+| Stale object-size estimates  | JOL, heap histogram         | Re-measure on JDK 27 (compact headers)              |
+| Unexpected GC in containers  | `jcmd VM.flags`             | Choose the GC and heap size explicitly              |
+| Integrity warnings on stderr | Startup logs                | Upgrade libraries; flags only as a stopgap          |
+| Wrong benchmark              | Common sense                | Use JMH                                             |
+
+<div class="takeaways">
 
 ## Key Takeaways
 
 - **Autoboxing** is the #1 hidden cost for Scala code using generic collections
-- **Megamorphic call sites** prevent inlining — keep hot call sites to ≤2 types
+- **Megamorphic call sites** prevent inlining: keep hot call sites to ≤ 2 types
 - Use **views** and **iterators** to avoid intermediate collections
-- Scala 3 **extension methods** are zero-cost; Scala 2 `implicit class extends AnyVal` is *usually* zero-cost
-- **`lazy val`** has locking overhead — don't use it in tight loops
+- Scala 3 **extension methods** never allocate a wrapper; Scala 2 `implicit class extends AnyVal` *usually* doesn't
+- **`lazy val`** has a per-access cost: don't use it in tight loops
+- On **JDK 27**, compact headers change object sizes and **G1** is the default even in small containers: re-measure, don't assume
+- Since **JDK 24**, `synchronized` no longer pins virtual threads; don't rewrite code for that reason
+- **Integrity warnings** (Unsafe, JNI, final-field mutation) are the JDK asking you to upgrade libraries
 - **JMH** is the only reliable way to benchmark JVM code
 
----
-
-[← Previous: Monitoring](21-monitoring.md) · [Next: Part VII — Ecosystem →](../part-7-ecosystem/index.md)
+</div>

@@ -1,18 +1,21 @@
 # The JVM — A Gentle Deep Dive
 
-A comprehensive book exploring the Java Virtual Machine, from its origins and architecture to modern innovations like GraalVM, Project Loom, and Project Valhalla.
+A gentle but thorough book about the Java Virtual Machine, written for Scala and Java developers: from its origins and architecture to memory, garbage collection, concurrency, and the modern projects reshaping it (Loom, Panama, Leyden, Lilliput, Valhalla).
+
+Up to date with **JDK 27** (September 2026), the current LTS **JDK 25**, and what's coming in JDK 28.
 
 📖 **Read online:** [https://brkaisin.github.io/jvm-book](https://brkaisin.github.io/jvm-book)
 
 ## Contents
 
-1. **The Big Picture** — Why the JVM exists, its architecture, and historical timeline
-2. **Class Files & Bytecode** — Class file anatomy, bytecode instructions, and the constant pool
-3. **Runtime & Execution** — Class loading, the execution engine, JIT compilation, and memory model
-4. **Type System** — Generics, type erasure, invokedynamic, and Project Valhalla
-5. **Concurrency** — The Java Memory Model, synchronized, locks, and virtual threads (Project Loom)
-6. **Garbage Collection** — GC fundamentals, collectors from Serial to ZGC, and tuning strategies
-7. **Beyond Java** — GraalVM, polyglot capabilities, native image, and the JVM's future
+1. **The Big Picture** — Why the JVM exists, the journey from source to execution, and a timeline from Java 1.0 to Java 27
+2. **JVM Architecture** — Class loaders, bytecode, runtime data areas, and the execution engine
+3. **Memory & Garbage Collection** — Object layout, GC fundamentals, a tour of the collectors, and GC tuning
+4. **The Type System at Runtime** — How the JVM sees types, inheritance and method dispatch, value objects and Project Valhalla
+5. **Concurrency and Threading** — Threads, the Java Memory Model, `java.util.concurrent`, and virtual threads (Project Loom)
+6. **Performance, Monitoring & Tooling** — JIT deep dive, ahead-of-time compilation (Project Leyden and GraalVM Native Image), monitoring, and common pitfalls
+7. **The JVM Ecosystem & Beyond** — The module system, JNI and Panama, the JVM language ecosystem, and what's next
+8. **Appendices** — JVM flags cheat sheet, bytecode reference, and glossary
 
 ## Building locally
 

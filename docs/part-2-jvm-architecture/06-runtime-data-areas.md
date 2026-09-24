@@ -4,37 +4,12 @@
 
 When the JVM starts, it carves out several regions of memory, each with a specific purpose. Understanding these areas is essential for debugging memory issues, tuning performance, and making sense of error messages like `OutOfMemoryError` and `StackOverflowError`.
 
-Here's the big picture:
+Figure 6.1 shows the big picture.
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                         JVM Process Memory                          │
-│                                                                     │
-│  ┌──────────────────────────────────────────┐  ┌─────────────────┐  │
-│  │              HEAP                        │  │   METASPACE     │  │
-│  │      (shared by all threads, GC'd)       │  │ (native memory) │  │
-│  │                                          │  │                 │  │
-│  │  ┌──────────────┐  ┌──────────────────┐  │  │ Class metadata  │  │
-│  │  │    YOUNG     │  │       OLD        │  │  │ Method bytecode │  │
-│  │  │  GENERATION  │  │   GENERATION     │  │  │ Constant pools  │  │
-│  │  │              │  │                  │  │  │                 │  │
-│  │  │ Eden         │  │ Long-lived       │  │  ├─────────────────┤  │
-│  │  │ Survivors    │  │ objects          │  │  │   CODE CACHE    │  │
-│  │  │              │  │                  │  │  │ JIT-compiled    │  │
-│  │  └──────────────┘  └──────────────────┘  │  │ native code     │  │
-│  └──────────────────────────────────────────┘  └─────────────────┘  │
-│                                                                     │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐   ┌───────────────┐   │
-│  │  Thread 1  │ │  Thread 2  │ │  Thread 3  │   │  Direct /     │   │
-│  │ ┌────────┐ │ │ ┌────────┐ │ │ ┌────────┐ │   │  off-heap     │   │
-│  │ │  Stack │ │ │ │  Stack │ │ │ │  Stack │ │   │  memory       │   │
-│  │ ├────────┤ │ │ ├────────┤ │ │ ├────────┤ │   │               │   │
-│  │ │  PC    │ │ │ │  PC    │ │ │ │  PC    │ │   │ (NIO, FFM)    │   │
-│  │ └────────┘ │ │ └────────┘ │ │ └────────┘ │   └───────────────┘   │
-│  └────────────┘ └────────────┘ └────────────┘                       │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
+<figure class="fig">
+{{#include ../figures/06-memory-map.svg}}
+<figcaption><b>Figure 6.1.</b> One heap, Metaspace and code cache are shared by every thread, while each thread gets its own stack and PC register; only the heap (blue) holds garbage-collected objects.</figcaption>
+</figure>
 
 The JVM specification describes these areas abstractly (heap, method area, JVM stacks, PC registers, native method stacks). What follows is how HotSpot, the JVM you almost certainly run, implements them. Let's explore each area.
 
@@ -181,33 +156,12 @@ jcmd <pid> Compiler.codecache
 
 ## The Stack — Per-Thread, Per-Method
 
-Every thread has its own **JVM stack**. The stack stores **frames** — one frame for each method call in progress. The most recent call is on top.
+Every thread has its own **JVM stack**. The stack stores **frames** — one frame for each method call in progress. The most recent call is on top, as Figure 6.2 shows.
 
-```text
-Thread 1's stack (grows as calls nest):
-┌──────────────────────────┐
-│  Frame: calculate()      │  ← Top: currently executing
-│  ┌─────────────────────┐ │
-│  │ Local variables     │ │  parameters, local vars
-│  │ Operand stack       │ │  temp values for computation
-│  │ Frame data          │ │  return address, constant pool ref
-│  └─────────────────────┘ │
-├──────────────────────────┤
-│  Frame: processData()    │  ← Called calculate()
-│  ┌─────────────────────┐ │
-│  │ Local variables     │ │
-│  │ Operand stack       │ │
-│  │ Frame data          │ │
-│  └─────────────────────┘ │
-├──────────────────────────┤
-│  Frame: main()           │  ← Bottom: called processData()
-│  ┌─────────────────────┐ │
-│  │ Local variables     │ │
-│  │ Operand stack       │ │
-│  │ Frame data          │ │
-│  └─────────────────────┘ │
-└──────────────────────────┘
-```
+<figure class="fig">
+{{#include ../figures/06-stack-frame.svg}}
+<figcaption><b>Figure 6.2.</b> Frames pile up as calls nest, and each frame holds a local variable array, an operand stack and frame data.</figcaption>
+</figure>
 
 When `calculate()` returns, its frame is popped. When `processData()` returns, its frame is popped. And so on.
 

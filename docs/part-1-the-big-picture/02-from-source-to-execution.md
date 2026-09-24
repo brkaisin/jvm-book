@@ -6,7 +6,7 @@ Every time you run a Scala or Java program, your source code goes through a rema
 
 <figure class="fig">
 {{#include ../figures/02-source-to-execution.svg}}
-<figcaption><b>Figure 2.1</b> — Two languages, one bytecode format, one runtime: <code>javac</code> and <code>scalac</code> both emit <code>.class</code> files, which the JVM loads, verifies and runs, first interpreted and then JIT-compiled to native code.</figcaption>
+<figcaption><b>Figure 2.1.</b> Two languages, one bytecode format, one runtime: <code>javac</code> and <code>scalac</code> both emit <code>.class</code> files, which the JVM loads, verifies and runs, first interpreted and then JIT-compiled to native code.</figcaption>
 </figure>
 
 ## Step 1: Compilation — Source to Bytecode

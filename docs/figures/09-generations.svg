@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 16 760 344" role="img" aria-labelledby="f9d-title f9d-desc">
+  <title id="f9d-title">The life cycle of an object in a generational heap</title>
+  <desc id="f9d-desc">The young generation holds Eden and two survivor spaces; the old generation sits below it. A new object is allocated in Eden with age 0. Most objects in Eden die young and are never copied. An object that survives a minor GC is copied to a survivor space with age 1; each further minor GC copies it to the other survivor space and adds one to its age. When its age reaches the tenuring threshold it is promoted to the old generation. Objects that are too big, or that do not fit when a survivor space overflows, go to the old generation directly. The young generation is collected by copying minor GCs, the old generation by major or mixed GCs.</desc>
+  <defs>
+    <marker id="f9d-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-ink"/>
+    </marker>
+    <marker id="f9d-arrow-accent" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-accent"/>
+    </marker>
+    <marker id="f9d-arrow-muted" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-muted"/>
+    </marker>
+  </defs>
+  <!-- row labels -->
+  <text x="16" y="92" class="t-title">Young generation</text>
+  <text x="16" y="110" class="t-small t-muted">minor GC, copying</text>
+  <text x="16" y="308" class="t-title">Old generation</text>
+  <text x="16" y="326" class="t-small t-muted">major or mixed GC</text>
+  <!-- allocation -->
+  <path d="M356 24 V80" class="line-accent" marker-end="url(#f9d-arrow-accent)"/>
+  <text x="368" y="38" class="t-mono">new Foo()</text>
+  <!-- young generation -->
+  <rect x="160" y="48" width="584" height="176" class="rule"/>
+  <rect x="176" y="64" width="208" height="144" class="box"/>
+  <text x="192" y="88">Eden</text>
+  <text x="192" y="106" class="t-small t-muted">new objects start here</text>
+  <rect x="344" y="80" width="24" height="24" class="box-accent"/>
+  <text x="356" y="96" class="t-small t-mid">0</text>
+  <rect x="192" y="144" width="24" height="24" class="box-ghost"/>
+  <rect x="224" y="144" width="24" height="24" class="box-ghost"/>
+  <rect x="256" y="144" width="24" height="24" class="box-ghost"/>
+  <rect x="288" y="144" width="24" height="24" class="box-ghost"/>
+  <text x="192" y="190" class="t-small t-muted">most die young, never copied</text>
+  <rect x="520" y="64" width="208" height="56" class="box"/>
+  <text x="576" y="97">Survivor 0</text>
+  <rect x="520" y="152" width="208" height="56" class="box"/>
+  <text x="576" y="185">Survivor 1</text>
+  <!-- first minor GC -->
+  <path d="M368 92 H536" class="line-accent" marker-end="url(#f9d-arrow-accent)"/>
+  <text x="452" y="84" class="t-small t-mid">survives a minor GC</text>
+  <rect x="536" y="80" width="24" height="24" class="box-accent"/>
+  <text x="548" y="96" class="t-small t-mid">1</text>
+  <!-- next minor GC -->
+  <path d="M548 104 V168" class="line-accent" marker-end="url(#f9d-arrow-accent)"/>
+  <text x="560" y="140" class="t-small">each minor GC: age + 1</text>
+  <rect x="536" y="168" width="24" height="24" class="box-accent"/>
+  <text x="548" y="184" class="t-small t-mid">2</text>
+  <!-- promotion -->
+  <path d="M548 192 V296" class="line-accent" marker-end="url(#f9d-arrow-accent)"/>
+  <text x="560" y="248" class="t-small">age reaches the tenuring</text>
+  <text x="560" y="263" class="t-small">threshold: promoted</text>
+  <!-- direct to old -->
+  <path d="M288 208 V280" class="line-muted dashed" marker-end="url(#f9d-arrow-muted)"/>
+  <text x="300" y="248" class="t-small t-muted">too big, or survivor</text>
+  <text x="300" y="263" class="t-small t-muted">space overflows</text>
+  <!-- old generation -->
+  <rect x="160" y="280" width="584" height="64" class="box"/>
+  <rect x="536" y="296" width="24" height="24" class="box-accent"/>
+</svg>

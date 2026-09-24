@@ -17,7 +17,7 @@ The answer is to do some of that work *ahead of time*. There are two very differ
 
 <figure class="fig">
 {{#include ../figures/20-aot-spectrum.svg}}
-<figcaption><b>Figure 20.1</b> — Each station precomputes more than the one before it; everything up to the AOT cache is still a full JVM, and only Native Image trades dynamism for a closed world.</figcaption>
+<figcaption><b>Figure 20.1.</b> Each station precomputes more than the one before it; everything up to the AOT cache is still a full JVM, and only Native Image trades dynamism for a closed world.</figcaption>
 </figure>
 
 Moving right, startup and warmup get faster. Everything up to and including the Leyden AOT cache keeps the **full dynamism of Java**: class loading, reflection, bytecode generation, and a JIT that can re-optimize. The last step, Native Image, gives some of that up in exchange for the fastest startup and the smallest footprint.

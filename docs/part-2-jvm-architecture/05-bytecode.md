@@ -27,18 +27,12 @@ iadd            // Pop two integers, add them, push the result (3)
 istore_1        // Pop the result and store it in local variable 1
 ```
 
-Visually:
+Figure 5.1 shows the operand stack after each of these instructions.
 
-```text
-Step 1: iconst_1       Step 2: iconst_2       Step 3: iadd         Step 4: istore_1
-┌───┐                  ┌───┐                  ┌───┐                ┌───┐
-│   │                  │ 2 │                  │   │                │   │
-│ 1 │                  │ 1 │                  │ 3 │                │   │
-└───┘                  └───┘                  └───┘                └───┘
- Stack                  Stack                  Stack                Stack
-
-                                                                   locals[1] = 3
-```
+<figure class="fig">
+{{#include ../figures/05-operand-stack.svg}}
+<figcaption><b>Figure 5.1.</b> Each instruction pushes onto or pops from the operand stack: <code>iadd</code> replaces the two values on top with their sum, and <code>istore_1</code> moves that result into local variable 1.</figcaption>
+</figure>
 
 > **Contrast with real CPUs**: x86 and ARM are *register-based*. They'd express this as `add r1, r2, r3` — "add registers r2 and r3, put result in r1." Android's Dalvik/ART bytecode is register-based too. Stack-based is simpler to implement and generates more compact bytecode, but register-based can be faster to interpret. The JIT compiler ultimately converts stack operations to register operations for the real CPU.
 

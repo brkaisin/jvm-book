@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 24 760 220" role="img" aria-labelledby="f14b-title f14b-desc">
+  <title id="f14b-title">A flattened LocalDate array with a null flag</title>
+  <desc id="f14b-desc">A LocalDate[] flattened by JEP 401 stores each element in one 64-bit word, 8 bytes per element: a null flag, then the fields year (an int), month and day (bytes). Elements 0, 1 and 3 have the flag set to 1 and hold 1996-01-23, 2026-01-23 and 1996-01-23. Element 2 is null: its flag is 0 and its fields are all zero. For comparison, today each element costs a 4-byte reference plus a 16-byte object.</desc>
+  <!-- row labels -->
+  <text x="20" y="124" class="t-title">LocalDate[]</text>
+  <text x="20" y="142" class="t-small t-muted">flattened (JEP 401)</text>
+  <text x="20" y="166" class="t-small t-accent">8 bytes per element</text>
+  <text x="20" y="190" class="t-small t-muted">today: 4-byte ref</text>
+  <text x="20" y="207" class="t-small t-muted">+ 16-byte object</text>
+  <!-- word bracket -->
+  <text x="352" y="40" class="t-small t-muted t-mid">one 64-bit word per element</text>
+  <path d="M201 54 V48 H503 V54" class="line-muted"/>
+  <!-- column headings -->
+  <text x="232" y="74" class="t-small t-mid">null flag</text>
+  <text x="320" y="74" class="t-small t-mid">year</text>
+  <text x="320" y="89" class="t-small t-muted t-mid">int</text>
+  <text x="408" y="74" class="t-small t-mid">month</text>
+  <text x="408" y="89" class="t-small t-muted t-mid">byte</text>
+  <text x="472" y="74" class="t-small t-mid">day</text>
+  <text x="472" y="89" class="t-small t-muted t-mid">byte</text>
+  <!-- indices -->
+  <text x="188" y="120" class="t-mono t-muted t-end">[0]</text>
+  <text x="188" y="152" class="t-mono t-muted t-end">[1]</text>
+  <text x="188" y="184" class="t-mono t-muted t-end">[2]</text>
+  <text x="188" y="216" class="t-mono t-muted t-end">[3]</text>
+  <!-- element 0 -->
+  <rect x="200" y="100" width="64" height="32" class="box"/>
+  <rect x="264" y="100" width="112" height="32" class="box-accent"/>
+  <rect x="376" y="100" width="64" height="32" class="box-accent"/>
+  <rect x="440" y="100" width="64" height="32" class="box-accent"/>
+  <text x="232" y="120" class="t-mono t-mid">1</text>
+  <text x="320" y="120" class="t-mono t-mid">1996</text>
+  <text x="408" y="120" class="t-mono t-mid">01</text>
+  <text x="472" y="120" class="t-mono t-mid">23</text>
+  <!-- element 1 -->
+  <rect x="200" y="132" width="64" height="32" class="box"/>
+  <rect x="264" y="132" width="112" height="32" class="box-accent"/>
+  <rect x="376" y="132" width="64" height="32" class="box-accent"/>
+  <rect x="440" y="132" width="64" height="32" class="box-accent"/>
+  <text x="232" y="152" class="t-mono t-mid">1</text>
+  <text x="320" y="152" class="t-mono t-mid">2026</text>
+  <text x="408" y="152" class="t-mono t-mid">01</text>
+  <text x="472" y="152" class="t-mono t-mid">23</text>
+  <!-- element 2: null -->
+  <rect x="200" y="164" width="64" height="32" class="box-warm"/>
+  <rect x="264" y="164" width="112" height="32" class="box-ghost"/>
+  <rect x="376" y="164" width="64" height="32" class="box-ghost"/>
+  <rect x="440" y="164" width="64" height="32" class="box-ghost"/>
+  <text x="232" y="184" class="t-mono t-warm t-mid">0</text>
+  <text x="320" y="184" class="t-mono t-muted t-mid">0000</text>
+  <text x="408" y="184" class="t-mono t-muted t-mid">00</text>
+  <text x="472" y="184" class="t-mono t-muted t-mid">00</text>
+  <!-- element 3 -->
+  <rect x="200" y="196" width="64" height="32" class="box"/>
+  <rect x="264" y="196" width="112" height="32" class="box-accent"/>
+  <rect x="376" y="196" width="64" height="32" class="box-accent"/>
+  <rect x="440" y="196" width="64" height="32" class="box-accent"/>
+  <text x="232" y="216" class="t-mono t-mid">1</text>
+  <text x="320" y="216" class="t-mono t-mid">1996</text>
+  <text x="408" y="216" class="t-mono t-mid">01</text>
+  <text x="472" y="216" class="t-mono t-mid">23</text>
+  <!-- annotations -->
+  <text x="528" y="120" class="t-small t-muted">flag 1: a LocalDate</text>
+  <text x="528" y="184" class="t-small t-warm">flag 0: null</text>
+</svg>

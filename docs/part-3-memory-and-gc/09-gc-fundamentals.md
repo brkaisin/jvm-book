@@ -87,36 +87,18 @@ The simplest approach. Two phases:
 
 **Sweep phase**: Walk the heap. Any object not marked is garbage: its memory is added to a *free list*.
 
-```text
-Before GC (✓ = marked as reachable):
-┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐
-│ A │ │ B │ │ C │ │ D │ │ E │ │ F │ │ G │
-└───┘ └───┘ └───┘ └───┘ └───┘ └───┘ └───┘
-  ✓           ✓     ✓
+Figure 9.1 follows one small heap through all three algorithms of this section. In its top row, marking has found A, C and D reachable, while B, E and F are garbage; the *Mark-sweep* row shows the heap after the sweep.
 
-After sweep (dotted = free):
-┌───┐ ┌┄┄┄┐ ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
-│ A │ ┆   ┆ │ C │ │ D │ ┆     free      ┆
-└───┘ └┄┄┄┘ └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
-```
+<figure class="fig">
+{{#include ../figures/09-algorithms.svg}}
+<figcaption><b>Figure 9.1.</b> The same heap after each core algorithm: mark-sweep leaves holes where the garbage was, mark-compact slides the live objects together, and copying moves them into an empty to-space, leaving the from-space empty.</figcaption>
+</figure>
 
 **Problem**: After sweeping, memory becomes **fragmented**: many small gaps between live objects. Allocating a large object might fail even though there's enough *total* free space, just not in one contiguous piece.
 
 ### Mark-Compact
 
-Same marking, but afterwards live objects are **compacted**: slid to one end of the heap:
-
-```text
-Before (dotted = free):
-┌───┐ ┌┄┄┄┐ ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
-│ A │ ┆   ┆ │ C │ │ D │ ┆     free      ┆
-└───┘ └┄┄┄┘ └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
-
-After compaction:
-┌───┐ ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
-│ A │ │ C │ │ D │ ┆  free (contiguous)  ┆
-└───┘ └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
-```
+Same marking, but afterwards live objects are **compacted**: slid to one end of the heap, as in the *Mark-compact* row of Figure 9.1, so all the free memory forms one contiguous block.
 
 **Advantage**: No fragmentation. Allocation becomes as fast as bumping a pointer.
 
@@ -124,17 +106,7 @@ After compaction:
 
 ### Copying
 
-Instead of compacting in place, divide memory into two halves ("from-space" and "to-space"). Copy live objects from one half to the other, then swap the roles:
-
-```text
-From-space:                    To-space:
-┌───┐ ┌┄┄┄┐ ┌───┐ ┌┄┄┄┐        ┌───┐ ┌───┐ ┌┄┄┄┄┄┄┄┄┄┐
-│ A │ ┆   ┆ │ C │ ┆   ┆  ───▶  │ A │ │ C │ ┆  free   ┆
-└───┘ └┄┄┄┘ └───┘ └┄┄┄┘        └───┘ └───┘ └┄┄┄┄┄┄┄┄┄┘
-                               (compacted, no fragmentation)
-
-Then swap: to-space becomes from-space for the next cycle.
-```
+Instead of compacting in place, divide memory into two halves ("from-space" and "to-space"). Copy live objects from one half to the other, then swap the roles. In the *Copying* row of Figure 9.1, the top row's heap is the from-space: A, C and D are copied, compacted, into the to-space, and the whole from-space is then free. For the next cycle, the to-space becomes the from-space.
 
 **Advantage**: Live objects end up compacted, allocation is a pointer bump, and the GC only visits *live* objects: the dead ones are never even looked at.
 
@@ -147,38 +119,25 @@ Then swap: to-space becomes from-space for the next cycle.
 
 The simplest way to run any of these algorithms is to **stop all application threads** while the GC works. This is called a **stop-the-world (STW) pause**.
 
-Why? If your threads are modifying object references while the GC is tracing them, the GC could miss a live object (and free it!) or follow a stale reference. The simplest solution is to freeze everything.
+Why? If your threads are modifying object references while the GC is tracing them, the GC could miss a live object (and free it!) or follow a stale reference. The simplest solution is to freeze everything, as in the top half of Figure 9.2.
 
-```text
-Application threads:  ──────────┤ PAUSE ├──────────
-                                    │
-GC thread(s):                  ┌────┴────┐
-                               │ Mark &  │
-                               │ Collect │
-                               └─────────┘
-```
+<figure class="fig">
+{{#include ../figures/09-pauses.svg}}
+<figcaption><b>Figure 9.2.</b> With a stop-the-world collector, every application thread waits at a safepoint while the GC works; a mostly concurrent collector does most of its work alongside the application and stops it only for short pauses.</figcaption>
+</figure>
 
 STW pauses are the main source of GC-induced latency spikes. A young-generation pause on a modern collector is typically a few milliseconds; a full collection of a large heap with a STW collector can take hundreds of milliseconds or more. For a web service with a 50 ms SLA, a 200 ms pause is catastrophic.
 
-Modern collectors (G1, ZGC, Shenandoah) do as much work as possible **concurrently**, while your application keeps running. ZGC and Shenandoah even move objects concurrently, keeping pauses well under a millisecond. The next sections explain what makes that possible.
+Modern collectors (G1, ZGC, Shenandoah) do as much work as possible **concurrently**, while your application keeps running (the bottom half of Figure 9.2). ZGC and Shenandoah even move objects concurrently, keeping pauses well under a millisecond. The next sections explain what makes that possible.
 
 ## Concurrent Marking and Barriers
 
-To mark while the application runs, collectors use the **tri-color abstraction**. Every object is in one of three states:
+To mark while the application runs, collectors use the **tri-color abstraction**. Every object is in one of three states, as Figure 9.3 shows:
 
-```text
-                reached from                  all its
-                a root or a                   references
-┌──────────────┐ grey object ┌──────────────┐ followed ┌──────────────┐
-│ White        │────────────▶│ Grey         │─────────▶│ Black        │
-│ not seen yet │             │ seen, fields │          │ seen and     │
-└──────┬───────┘             │ not scanned  │          │ fully        │
-       ┆                     │ yet          │          │ scanned      │
-       ┆ still white when    └──────────────┘          └──────────────┘
-       ┆ marking ends
-       ▼
-    garbage
-```
+<figure class="fig">
+{{#include ../figures/09-tricolour.svg}}
+<figcaption><b>Figure 9.3.</b> Marking advances from the roots as a grey wavefront, so no black object points to a white one; if the application breaks that rule behind the collector's back, a live object is lost.</figcaption>
+</figure>
 
 Marking is done when there are no grey objects left. The danger is that the application, running at the same time, stores a reference to a white object into a black one (which the GC won't scan again) and removes the last other path to it. The white object would then be freed while still in use.
 
@@ -213,29 +172,12 @@ for (int i = 0; i < 1_000_000; i++) {
 
 ## Generational Collection: Putting It Together
 
-Combining the core algorithms with the generational heap design ([Chapter 6](../part-2-jvm-architecture/06-runtime-data-areas.md)) gives the life cycle of a typical object:
+Combining the core algorithms with the generational heap design ([Chapter 6](../part-2-jvm-architecture/06-runtime-data-areas.md)) gives the life cycle of a typical object (Figure 9.4):
 
-```text
-                        new object
-                            │
-                            ▼
-                  ┌───────────────────┐  dies young
-                  │       Eden        │──(most objects)──────┐
-                  └──┬─────────────┬──┘                      │
-                     ┆             │ survives a minor GC     │
-                     ┆             ▼                         │
-  too big, or        ┆      ┌─────────────┐                  │
-  survivor space     ┆      │ Survivor    │                  │
-  overflows          ┆      │ age + 1 per │──────────────────┤
-                     ┆      │ GC survived │                  │
-                     ┆      └──────┬──────┘                  │
-                     ┆             │ age reaches the         │
-                     ┆             │ tenuring threshold      ▼
-                  ┌──▼─────────────▼──┐               ┌───────────┐
-                  │ Old generation    │ major/mixed GC│ reclaimed │
-                  │                   │──────────────▶│           │
-                  └───────────────────┘               └───────────┘
-```
+<figure class="fig">
+{{#include ../figures/09-generations.svg}}
+<figcaption><b>Figure 9.4.</b> An object starts in Eden, moves between the survivor spaces with each minor GC it survives, and is promoted to the old generation once its age reaches the tenuring threshold.</figcaption>
+</figure>
 
 ### Minor GC (Young Generation)
 

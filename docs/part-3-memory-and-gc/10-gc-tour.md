@@ -111,7 +111,7 @@ G1 uses a different heap layout: instead of contiguous young and old generations
 
 <figure class="fig">
 {{#include ../figures/10-g1-regions.svg}}
-<figcaption><b>Figure 10.1</b> — A G1 heap: every region has one role at a time, the roles are scattered rather than contiguous, and a collection takes only a chosen set of regions (outlined), never the whole heap.</figcaption>
+<figcaption><b>Figure 10.1.</b> A G1 heap: every region has one role at a time, the roles are scattered rather than contiguous, and a collection takes only a chosen set of regions (outlined), never the whole heap.</figcaption>
 </figure>
 
 Key concepts:

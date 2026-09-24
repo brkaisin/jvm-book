@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 20 760 648" role="img" aria-labelledby="f6a-title f6a-desc">
+  <title id="f6a-title">The memory of a JVM process: shared areas and per-thread areas</title>
+  <desc id="f6a-desc">Top band, shared by all threads, one of each per JVM process: the heap, with a young generation (Eden, S0, S1) and an old generation (with G1 the same roles sit on equal-sized regions); it holds the garbage-collected objects and is capped by -Xmx. Metaspace holds class metadata, bytecode and constant pools, and contains the compressed class space (1 GB reserved). The code cache holds JIT-compiled code in three segments, non-method, profiled and non-profiled, 240 MB max by default. Metaspace and the code cache are native memory, outside the heap. Middle band, per thread: each of threads 1, 2, 3 and more has its own JVM stack of frames, newest on top (thread 1: main, processData, calculate), and its own PC register. Thread 3 is running a native frame, so its PC is undefined. Java and native frames share one stack in HotSpot; the stack has a fixed size, 1 MB by default on Linux x64, changed with -Xss. Bottom band: direct memory, off-heap native memory from NIO direct buffers and FFM arenas, not moved or scanned by the GC.</desc>
+  <defs>
+    <pattern id="f6a-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/>
+    </pattern>
+  </defs>
+  <!-- shared by all threads -->
+  <text x="16" y="40" class="t-title">Shared by all threads</text>
+  <text x="744" y="40" class="t-small t-muted t-end">one of each per JVM process</text>
+  <path d="M16 52 H744" class="rule"/>
+  <rect x="16" y="68" width="312" height="156" class="box-accent"/>
+  <text x="32" y="90" class="t-title">Heap</text>
+  <text x="32" y="108" class="t-small t-muted">every object, array and closure</text>
+  <rect x="32" y="124" width="132" height="60" class="box"/>
+  <text x="98" y="150" class="t-mid">Young</text>
+  <text x="98" y="168" class="t-small t-muted t-mid">Eden, S0, S1</text>
+  <rect x="180" y="124" width="132" height="60" class="box" style="fill: url(#f6a-hatch)"/>
+  <text x="246" y="150" class="t-mid">Old</text>
+  <text x="246" y="168" class="t-small t-muted t-mid">long-lived objects</text>
+  <text x="32" y="208" class="t-small t-muted">G1: same roles, on equal-sized regions</text>
+  <rect x="344" y="68" width="192" height="156" class="box"/>
+  <text x="360" y="90" class="t-title">Metaspace</text>
+  <text x="360" y="108" class="t-small t-muted">class metadata, bytecode,</text>
+  <text x="360" y="124" class="t-small t-muted">constant pools</text>
+  <rect x="360" y="144" width="160" height="56" class="line-muted"/>
+  <text x="440" y="167" class="t-small t-mid">compressed class space</text>
+  <text x="440" y="185" class="t-small t-muted t-mid">1 GB reserved</text>
+  <rect x="552" y="68" width="192" height="156" class="box"/>
+  <text x="568" y="90" class="t-title">Code cache</text>
+  <text x="568" y="108" class="t-small t-muted">JIT-compiled code, stubs</text>
+  <rect x="568" y="120" width="160" height="24" class="line-muted"/>
+  <text x="648" y="136" class="t-small t-mid">non-method</text>
+  <rect x="568" y="144" width="160" height="24" class="line-muted"/>
+  <text x="648" y="160" class="t-small t-mid">profiled</text>
+  <rect x="568" y="168" width="160" height="24" class="line-muted"/>
+  <text x="648" y="184" class="t-small t-mid">non-profiled</text>
+  <text x="568" y="212" class="t-small t-muted">240 MB max by default</text>
+  <path d="M17 236 V242 H327 V236" class="line-muted"/>
+  <text x="172" y="258" class="t-small t-muted t-mid">Java heap: garbage-collected, capped by -Xmx</text>
+  <path d="M345 236 V242 H743 V236" class="line-muted"/>
+  <text x="544" y="258" class="t-small t-muted t-mid">native memory, outside the heap</text>
+  <!-- per thread -->
+  <text x="16" y="304" class="t-title">Per thread</text>
+  <text x="744" y="304" class="t-small t-muted t-end">one set per platform thread</text>
+  <path d="M16 316 H744" class="rule"/>
+  <text x="96" y="340" class="t-mid">Thread 1</text>
+  <rect x="16" y="352" width="160" height="144" class="line"/>
+  <text x="96" y="382" class="t-small t-muted t-mid">JVM stack</text>
+  <rect x="24" y="460" width="144" height="28" class="box"/>
+  <text x="96" y="478" class="t-mono t-mid">main()</text>
+  <rect x="24" y="432" width="144" height="28" class="box"/>
+  <text x="96" y="450" class="t-mono t-mid">processData()</text>
+  <rect x="24" y="404" width="144" height="28" class="box"/>
+  <text x="96" y="422" class="t-mono t-mid">calculate()</text>
+  <rect x="16" y="508" width="160" height="32" class="box"/>
+  <text x="28" y="529">PC register</text>
+  <text x="164" y="529" class="t-mono t-end">12</text>
+  <text x="276" y="340" class="t-mid">Thread 2</text>
+  <rect x="196" y="352" width="160" height="144" class="line"/>
+  <text x="276" y="382" class="t-small t-muted t-mid">JVM stack</text>
+  <rect x="204" y="460" width="144" height="28" class="box"/>
+  <text x="276" y="478" class="t-small t-muted t-mid">frame</text>
+  <rect x="204" y="432" width="144" height="28" class="box"/>
+  <text x="276" y="450" class="t-small t-muted t-mid">frame</text>
+  <rect x="204" y="404" width="144" height="28" class="box"/>
+  <text x="276" y="422" class="t-small t-muted t-mid">frame</text>
+  <rect x="196" y="508" width="160" height="32" class="box"/>
+  <text x="208" y="529">PC register</text>
+  <text x="344" y="529" class="t-mono t-end">40</text>
+  <text x="456" y="340" class="t-mid">Thread 3</text>
+  <rect x="376" y="352" width="160" height="144" class="line"/>
+  <text x="456" y="382" class="t-small t-muted t-mid">JVM stack</text>
+  <rect x="384" y="460" width="144" height="28" class="box"/>
+  <text x="456" y="478" class="t-small t-muted t-mid">frame</text>
+  <rect x="384" y="432" width="144" height="28" class="box"/>
+  <text x="456" y="450" class="t-small t-muted t-mid">frame</text>
+  <rect x="384" y="404" width="144" height="28" class="box-warm"/>
+  <text x="456" y="422" class="t-small t-mid">native frame</text>
+  <rect x="376" y="508" width="160" height="32" class="box"/>
+  <text x="388" y="529">PC register</text>
+  <text x="524" y="529" class="t-small t-warm t-end">undefined</text>
+  <text x="568" y="428" class="t-mid t-muted">…</text>
+  <text x="600" y="368" class="t-small t-muted">Newest frame on top.</text>
+  <text x="600" y="392" class="t-small t-muted">Java and native frames</text>
+  <text x="600" y="408" class="t-small t-muted">share one stack</text>
+  <text x="600" y="424" class="t-small t-muted">in HotSpot.</text>
+  <text x="600" y="456" class="t-small t-muted">Fixed size: 1 MB by</text>
+  <text x="600" y="472" class="t-small t-muted">default on Linux x64,</text>
+  <text x="600" y="488" class="t-small t-muted">set with -Xss.</text>
+  <text x="600" y="521" class="t-small t-muted">Current instruction;</text>
+  <text x="600" y="537" class="t-small t-muted">undefined in native code.</text>
+  <!-- off-heap -->
+  <text x="16" y="588" class="t-title">Off-heap</text>
+  <text x="744" y="588" class="t-small t-muted t-end">not one of the JVM data areas</text>
+  <path d="M16 600 H744" class="rule"/>
+  <rect x="16" y="616" width="728" height="40" class="box"/>
+  <text x="32" y="641">Direct memory</text>
+  <text x="152" y="641" class="t-small t-muted">NIO direct buffers and FFM arenas: native memory, not moved or scanned by the GC</text>
+</svg>

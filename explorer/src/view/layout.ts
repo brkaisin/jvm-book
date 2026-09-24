@@ -30,6 +30,8 @@ export const LAYOUT = {
   threadZ: 18,
   platformX: [-25, -20, -15, -10] as const,
   carrierX: [5, 10] as const,
+  /** The Code Lab's thread tower. */
+  labX: 16,
   vqueue: v(7.5, 12, 18),
   framePitch: 0.62,
   towerBase: 1.3,
@@ -46,7 +48,7 @@ export const LAYOUT = {
   gcHome: v(0, 12, -4),
   jfrOrbit: { radius: 64, y: 24 },
   hardwareY: -16,
-  cpu: v(-7.5, -16, 18),
+  cpu: v(-4.5, -16, 18),
   ram: v(0, -16, -8),
   dome: { center: v(0, 0, -2), radii: v(72, 32, 50) },
 } as const;
@@ -79,7 +81,7 @@ export function slotPosition(region: number, slot: number, out = new Vector3()):
 
 /** Position of a thread tower's base; carriers come after platform threads. */
 export function towerBase(threadIndex: number, out = new Vector3()): Vector3 {
-  const xs = [...LAYOUT.platformX, ...LAYOUT.carrierX];
+  const xs = [...LAYOUT.platformX, ...LAYOUT.carrierX, LAYOUT.labX];
   return out.set(xs[threadIndex], 0, LAYOUT.threadZ);
 }
 

@@ -38,7 +38,8 @@ export interface HeapObject extends Location {
   readonly size: number;
   age: number;
   readonly bornAt: number;
-  readonly diesAt: number;
+  /** When it becomes unreachable (Infinity: until someone says so, see kill()). */
+  diesAt: number;
   /** Set while the object is being copied during evacuation. */
   movedFrom?: Location;
 }
@@ -148,6 +149,11 @@ export class HeapSim extends Emitter<HeapEvents> {
   }
 
   // ------------------------------------------------------------- mutation
+
+  /** Marks `o` unreachable from now on: the next collection of its region reclaims it. */
+  kill(o: HeapObject): void {
+    o.diesAt = Math.min(o.diesAt, this.now);
+  }
 
   requestGc(): void {
     this.gcRequested = true;

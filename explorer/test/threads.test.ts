@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ThreadSim } from '../src/sim/threads';
+import { BURST_DEPTH, ThreadSim } from '../src/sim/threads';
 import { Rng } from '../src/sim/rng';
 
 const sim = (vthreads = 10) => new ThreadSim({ rng: new Rng(3), vthreads, pickMethod: () => 0 });
@@ -49,5 +49,19 @@ describe('ThreadSim', () => {
   it('caps the number of virtual threads', () => {
     const s = new ThreadSim({ rng: new Rng(1), vthreads: 190, maxVthreads: 200, pickMethod: () => 0 });
     expect(s.spawn(64)).toBe(10);
+  });
+});
+
+describe('ThreadSim bursts', () => {
+  it('callDeeper pushes frames up to the burst depth and reports each call', () => {
+    const s = sim();
+    let calls = 0;
+    s.on('call', () => calls++);
+    const before = s.threads[0].frames.length;
+    s.callDeeper(0, 6);
+    expect(s.threads[0].frames.length).toBe(Math.min(BURST_DEPTH, before + 6));
+    expect(calls).toBe(s.threads[0].frames.length - before);
+    s.callDeeper(0, 100);
+    expect(s.threads[0].frames.length).toBe(BURST_DEPTH);
   });
 });

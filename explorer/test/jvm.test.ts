@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JvmSim, KLASSES, PRELOADED } from '../src/sim/jvm';
+import { AUTO_LOADED, JvmSim, KLASSES, PRELOADED } from '../src/sim/jvm';
 
 const run = (j: JvmSim, seconds: number) => {
   for (let t = 0; t < seconds; t += 1 / 30) j.step(1 / 30);
@@ -22,7 +22,7 @@ describe('JvmSim', () => {
     expect(n).toBeGreaterThan(PRELOADED);
     expect(n).toBeLessThan(KLASSES.length);
     run(j, 30);
-    expect(j.stats().classesLoaded).toBe(KLASSES.length);
+    expect(j.stats().classesLoaded).toBe(AUTO_LOADED);
   });
 
   it('only allocates instances of loaded classes', () => {
@@ -61,5 +61,27 @@ describe('JvmSim', () => {
     const s = j.stats();
     run(j, 5);
     expect(j.stats()).toEqual(s);
+  });
+});
+
+describe('JvmSim on demand', () => {
+  it('loads the on-demand classes only when asked', () => {
+    const j = new JvmSim({ seed: 21, loadInterval: 0.2, loadSeconds: 0.1 });
+    run(j, 20);
+    expect(j.stats().classesLoaded).toBe(AUTO_LOADED);
+    const k = j.loadClass();
+    expect(k).toBe(AUTO_LOADED);
+    run(j, 1);
+    expect(j.klassState[AUTO_LOADED]).toBe('loaded');
+    for (let i = AUTO_LOADED + 1; i < KLASSES.length; i++) j.loadClass();
+    expect(j.loadClass()).toBeNull();
+  });
+
+  it('allocates a burst at once, until the heap is full', () => {
+    const j = new JvmSim({ seed: 22 });
+    const before = j.allocated;
+    expect(j.allocateNow(150)).toBe(150);
+    expect(j.allocated - before).toBe(150);
+    expect(j.allocateNow(100_000)).toBeLessThan(100_000);
   });
 });

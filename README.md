@@ -24,9 +24,12 @@ The book comes with an interactive 3D explorer: a small, living JVM you can fly 
 It lives in [`explorer/`](explorer/), a TypeScript + [Three.js](https://threejs.org/) app built with [Vite](https://vite.dev/):
 
 - `src/sim/`: a pure, deterministic model of the JVM (G1/ZGC heap, tiered JIT, platform and virtual threads, class loading), unit-tested with Vitest
+- `src/lang/`: a compiler from a Java subset to real JVM bytecode, and a bytecode VM, used by the Code Lab
+- `src/lab/`: runs Code Lab programs on the simulated JVM (frames, allocations, reachability-based GC, JIT tiers)
 - `src/view/`: the Three.js scene, which only renders the simulation's state
-- `src/ui/`: the panels, tour, map and flight-recorder HUD
+- `src/ui/`, `src/audio/`: the panels, tour, map, legend, Code Lab, flight-recorder HUD, synthesised sound and the narrator (Web Speech)
 - `src/content.ts`: every explanation and every link into the book (a test checks that each link points to a real chapter and heading)
+- `e2e/`: Playwright tests driving the real page (`npm run build && npm run e2e`)
 
 ## Building locally
 

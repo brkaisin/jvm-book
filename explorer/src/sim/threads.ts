@@ -11,7 +11,8 @@ export interface Frame {
   readonly method: number;
 }
 
-export type ThreadKind = 'platform' | 'carrier';
+/** `lab`: the Code Lab's thread, whose frames are driven by the bytecode VM, not by this simulation. */
+export type ThreadKind = 'platform' | 'carrier' | 'lab';
 
 export interface PlatformThread {
   readonly index: number;
@@ -57,6 +58,8 @@ export interface ThreadOptions {
 
 const MIN_DEPTH = 2;
 const MAX_DEPTH = 11;
+/** How deep a visitor can push a thread (the view shows up to 16 frames). */
+export const BURST_DEPTH = 16;
 
 export class ThreadSim extends Emitter<ThreadEvents> {
   readonly threads: PlatformThread[];
@@ -79,6 +82,7 @@ export class ThreadSim extends Emitter<ThreadEvents> {
     const specs: [string, ThreadKind][] = [
       ...names.map((name): [string, ThreadKind] => [name, 'platform']),
       ...Array.from({ length: carriers }, (_, i): [string, ThreadKind] => [`ForkJoinPool-1-worker-${i + 1}`, 'carrier']),
+      ['your code', 'lab'],
     ];
     this.threads = specs.map(([name, kind], index) => ({ index, name, kind, frames: [], pc: 0, mounted: null, nextCallAt: 0 }));
     for (const t of this.threads) if (t.kind === 'platform') t.frames = this.makeStack(this.rng.int(4) + 3);
@@ -87,6 +91,11 @@ export class ThreadSim extends Emitter<ThreadEvents> {
 
   get carriers(): PlatformThread[] {
     return this.threads.filter((t) => t.kind === 'carrier');
+  }
+
+  /** The Code Lab's thread. */
+  get lab(): PlatformThread {
+    return this.threads.find((t) => t.kind === 'lab')!;
   }
 
   countVthreads(state: VThreadState): number {
@@ -109,11 +118,24 @@ export class ThreadSim extends Emitter<ThreadEvents> {
     return k;
   }
 
+  /** Makes `thread` call `n` methods in a row, deeper than it usually goes. */
+  callDeeper(thread: number, n: number): void {
+    const t = this.threads[thread];
+    for (let i = 0; i < n && t.frames.length < BURST_DEPTH; i++) {
+      const f = this.makeFrame();
+      t.frames.push(f);
+      this.emit('call', { thread: t.index, method: f.method });
+    }
+    t.pc = 0;
+    t.nextCallAt = this.now + 1.2; // stay deep for a moment, then unwind
+  }
+
   /** `frozen` = stopped at a safepoint: nothing moves. */
   step(dt: number, frozen = false): void {
     if (frozen) return;
     this.now += dt;
     for (const t of this.threads) {
+      if (t.kind === 'lab') continue;
       if (t.kind === 'carrier') this.stepCarrier(t);
       if (t.frames.length === 0) continue;
       t.pc = (t.pc + 1 + this.rng.int(3)) % 64;

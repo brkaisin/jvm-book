@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { C, Flow, arc, edged, glowSprite, textTexture, type Part, type Registry } from './fx';
 import { LAYOUT, coreCenter, towerBase } from './layout';
 
-const THREAD_COUNT = LAYOUT.platformX.length + LAYOUT.carrierX.length;
+const THREAD_COUNT = LAYOUT.platformX.length + LAYOUT.carrierX.length + 1; // + the Code Lab's thread
 
 export class Scenery implements Part {
   private readonly spinners: { obj: THREE.Object3D; axis: 'x' | 'y' | 'z'; speed: number }[] = [];
@@ -16,6 +16,9 @@ export class Scenery implements Part {
   private readonly jfrLight: THREE.Sprite;
   private readonly vortex: THREE.Points;
   private readonly classfile: THREE.Mesh;
+  private portalRing!: THREE.Mesh;
+  private portalFlash = 0;
+  private jfrFlash = 0;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -45,7 +48,27 @@ export class Scenery implements Part {
     const a = time * 0.07;
     this.jfr.position.set(Math.cos(a) * radius, y + Math.sin(time * 0.5) * 1.5, Math.sin(a) * radius * 0.75);
     this.jfr.rotation.y = -a;
-    (this.jfrLight.material as THREE.SpriteMaterial).opacity = Math.sin(time * 5) > 0.3 ? 1 : 0.15;
+    this.jfrFlash = Math.max(0, this.jfrFlash - dt * 1.2);
+    const blink = Math.sin(time * 5) > 0.3 ? 1 : 0.15;
+    (this.jfrLight.material as THREE.SpriteMaterial).opacity = Math.max(blink, this.jfrFlash);
+    this.jfrLight.scale.setScalar(3 + this.jfrFlash * 14);
+    this.portalFlash = Math.max(0, this.portalFlash - dt * 1.5);
+    (this.portalRing.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.6 + this.portalFlash * 4;
+    this.vortex.rotation.x -= dt * this.portalFlash * 6;
+  }
+
+  /** The portal lights up: a native call is going through. */
+  pulsePortal(): void {
+    this.portalFlash = 1;
+  }
+
+  /** The flight recorder flashes: a recording was dumped. */
+  pulseJfr(): void {
+    this.jfrFlash = 1;
+  }
+
+  get jfrPosition(): THREE.Vector3 {
+    return this.jfr.position;
   }
 
   private spin(obj: THREE.Object3D, speed: number, axis: 'x' | 'y' | 'z' = 'y') {
@@ -281,6 +304,7 @@ export class Scenery implements Part {
       }),
     );
     const portal = new THREE.Group();
+    this.portalRing = ring;
     ring.rotation.y = Math.PI / 2;
     ring2.rotation.y = Math.PI / 2;
     portal.add(ring, ring2, vortex, glowSprite(C.native, 12, 0.45));
@@ -364,7 +388,7 @@ export class Scenery implements Part {
 
   private buildHardware() {
     const y = LAYOUT.hardwareY;
-    const die = edged(new THREE.BoxGeometry(46, 0.8, 11), '#8a7dff', { body: '#0c0f1e', edgeOpacity: 0.6 });
+    const die = edged(new THREE.BoxGeometry(52, 0.8, 11), '#8a7dff', { body: '#0c0f1e', edgeOpacity: 0.6 });
     die.position.set(LAYOUT.cpu.x, y - 0.4, LAYOUT.cpu.z);
     const cpu = new THREE.Group();
     cpu.add(die);
@@ -382,11 +406,11 @@ export class Scenery implements Part {
       beam.computeLineDistances();
       this.scene.add(beam);
     }
-    const l3 = edged(new THREE.BoxGeometry(40, 0.6, 2), '#8a7dff', { body: '#141032' });
+    const l3 = edged(new THREE.BoxGeometry(46, 0.6, 2), '#8a7dff', { body: '#141032' });
     l3.position.set(LAYOUT.cpu.x, y + 0.3, LAYOUT.cpu.z + 4);
     cpu.add(l3);
     this.reg.add(cpu, 'cpu', { view: new THREE.Vector3(0.15, 0.22, 1) });
-    this.reg.label('CPU cores & caches', LAYOUT.cpu.clone().add(new THREE.Vector3(-24, 2, 4)), { id: 'cpu' });
+    this.reg.label('CPU cores & caches', LAYOUT.cpu.clone().add(new THREE.Vector3(-27, 2, 4)), { id: 'cpu' });
     const bus = LAYOUT.cpu.clone().setY(y + 0.8).add(new THREE.Vector3(0, 0, 4));
     this.flow(new THREE.LineCurve3(bus.clone().setX(bus.x - 19), bus.clone().setX(bus.x + 19)), {
       color: '#b7a8ff',

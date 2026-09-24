@@ -16,6 +16,8 @@ export interface Klass {
   readonly size: number;
   /** How often instances get allocated, relative to the others. */
   readonly allocWeight: number;
+  /** Only the Code Lab loads and allocates it. */
+  readonly lab?: true;
 }
 
 export const KLASSES: readonly Klass[] = [
@@ -37,10 +39,24 @@ export const KLASSES: readonly Klass[] = [
   { name: 'shop.Json$Parser', loader: 'app', size: 56, allocWeight: 1 },
   { name: 'shop.Point', loader: 'app', size: 24, allocWeight: 1.5 },
   { name: 'shop.Checkout$$Lambda', loader: 'app', size: 16, allocWeight: 1.5 },
+  // Only loaded on demand (when the visitor asks for more classes).
+  { name: 'shop.Invoice', loader: 'app', size: 40, allocWeight: 1 },
+  { name: 'java.time.LocalDate', loader: 'bootstrap', size: 24, allocWeight: 1 },
+  { name: 'shop.Discount', loader: 'app', size: 24, allocWeight: 1 },
+  { name: 'java.util.stream.ReferencePipeline', loader: 'bootstrap', size: 48, allocWeight: 0.5 },
+  { name: 'java.sql.Connection', loader: 'platform', size: 64, allocWeight: 0.2 },
+  { name: 'shop.Report', loader: 'app', size: 32, allocWeight: 0.8 },
+  // The classes of the program written in the Code Lab.
+  { name: 'Main (your code)', loader: 'app', size: 16, allocWeight: 0, lab: true },
 ];
+
+/** Index of the Code Lab's class in KLASSES. */
+export const LAB_KLASS = KLASSES.findIndex((k) => k.lab);
 
 /** Classes already there when the JVM finishes booting. */
 export const PRELOADED = 7;
+/** Classes the program loads by itself over time; the rest load on demand. */
+export const AUTO_LOADED = 18;
 
 export type KlassState = 'unloaded' | 'loading' | 'loaded';
 
@@ -151,26 +167,56 @@ export class JvmSim extends Emitter<JvmEvents> {
     }
     if (this.now < this.nextLoadAt) return;
     const next = this.klassState.indexOf('unloaded');
-    if (next < 0) return;
-    this.klassState[next] = 'loading';
-    this.loading.push({ klass: next, startedAt: this.now });
+    if (next < 0 || next >= AUTO_LOADED) return;
+    this.startLoading(next);
     this.nextLoadAt = this.now + this.loadInterval;
+  }
+
+  /** Starts loading the next class that is not loaded yet; null if all are. */
+  loadClass(): number | null {
+    const next = this.klassState.findIndex((s, i) => s === 'unloaded' && !KLASSES[i].lab);
+    if (next < 0) return null;
+    this.startLoading(next);
+    return next;
+  }
+
+  /** Loads class `k` if it is not loaded yet (the Code Lab loads its own class this way). */
+  loadKlass(k: number): void {
+    if (this.klassState[k] === 'unloaded') this.startLoading(k);
+  }
+
+  private startLoading(k: number): void {
+    this.klassState[k] = 'loading';
+    this.loading.push({ klass: k, startedAt: this.now });
+  }
+
+  /** Allocates `n` objects right away; returns how many fit before the heap was full. */
+  allocateNow(n: number): number {
+    let done = 0;
+    while (done < n && this.allocateOne()) done++;
+    return done;
   }
 
   private allocate(dt: number): void {
     this.allocDebt += dt * this.allocRate;
-    const loaded = this.loadedKlasses();
-    const total = loaded.reduce((s, k) => s + KLASSES[k].allocWeight, 0);
     while (this.allocDebt >= 1) {
       this.allocDebt -= 1;
-      let r = this.rng.next() * total;
-      const klass = loaded.find((k) => (r -= KLASSES[k].allocWeight) < 0) ?? loaded[0];
-      if (!this.heap.allocate({ klass, size: KLASSES[klass].size })) {
+      if (!this.allocateOne()) {
         this.allocDebt = 0; // allocation stall: wait for the GC
         break;
       }
-      this.allocated++;
     }
+  }
+
+  /** One allocation of a loaded class, picked by how often the program uses it. */
+  private allocateOne(): boolean {
+    const loaded = this.loadedKlasses();
+    const total = loaded.reduce((s, k) => s + KLASSES[k].allocWeight, 0);
+    let r = this.rng.next() * total;
+    const klass = loaded.find((k) => KLASSES[k].allocWeight > 0 && (r -= KLASSES[k].allocWeight) < 0) ?? loaded[0];
+    if (!this.heap.allocate({ klass, size: KLASSES[klass].size })) return false;
+    this.allocated++;
+    return true;
   }
 
   stats(): Stats {

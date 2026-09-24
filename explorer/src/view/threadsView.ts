@@ -15,6 +15,9 @@ import { HEAP_SIZE, LAYOUT, framePosition, regionCenter, towerBase } from './lay
 export const TIER_COLOR: Record<Tier, THREE.Color> = { 0: C.interp, 3: C.c1, 4: C.c2 };
 
 const MAX_FRAMES = 16;
+/** The Code Lab's tower may grow up to the dome (a StackOverflowError is the point). */
+export const LAB_MAX_FRAMES = 46;
+const capOf = (kind: string) => (kind === 'lab' ? LAB_MAX_FRAMES : MAX_FRAMES);
 const MAX_VTHREADS = 220;
 
 interface ShownFrame {
@@ -50,24 +53,31 @@ export class ThreadsView implements Part {
     const threads = sim.threads.threads;
     this.shown = threads.map(() => []);
 
-    this.frames = new THREE.InstancedMesh(new THREE.BoxGeometry(2.6, 0.5, 2.6), new THREE.MeshBasicMaterial(), threads.length * MAX_FRAMES);
+    const capacity = threads.reduce((n, t) => n + capOf(t.kind), 0);
+    this.frames = new THREE.InstancedMesh(new THREE.BoxGeometry(2.6, 0.5, 2.6), new THREE.MeshBasicMaterial(), capacity);
     this.frames.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.frames.setColorAt(0, C.interp);
     this.frames.frustumCulled = false;
     scene.add(this.frames);
-    this.reg.pick(this.frames, (i) => (i !== undefined && this.frameOwner[i] && threads[this.frameOwner[i].thread].kind === 'carrier' ? 'carriers' : 'frame'));
+    this.reg.pick(this.frames, (i) => {
+      const kind = i !== undefined && this.frameOwner[i] ? threads[this.frameOwner[i].thread].kind : 'platform';
+      return kind === 'carrier' ? 'carriers' : kind === 'lab' ? 'lab' : 'frame';
+    });
 
     threads.forEach((t, i) => {
       const base = towerBase(i);
       const carrier = t.kind === 'carrier';
-      const nativeStack = edged(new THREE.CylinderGeometry(1.9, 2.2, LAYOUT.towerBase, 6), carrier ? '#d7b8ff' : '#b388ff', { body: '#120d22' });
+      const lab = t.kind === 'lab';
+      const color = lab ? '#ffd166' : carrier ? '#d7b8ff' : '#b388ff';
+      const nativeStack = edged(new THREE.CylinderGeometry(1.9, 2.2, LAYOUT.towerBase, 6), color, { body: lab ? '#2a1f07' : '#120d22' });
       nativeStack.position.copy(base).setY(LAYOUT.towerBase / 2);
-      this.reg.add(nativeStack, carrier ? 'carriers' : 'nativestack');
+      this.reg.add(nativeStack, lab ? 'lab' : carrier ? 'carriers' : 'nativestack');
+      const cap = capOf(t.kind);
       const rail = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, MAX_FRAMES * LAYOUT.framePitch, 6),
-        new THREE.MeshBasicMaterial({ color: C.thread, transparent: true, opacity: 0.35 }),
+        new THREE.CylinderGeometry(0.06, 0.06, cap * LAYOUT.framePitch, 6),
+        new THREE.MeshBasicMaterial({ color: lab ? C.gold : C.thread, transparent: true, opacity: lab ? 0.18 : 0.35 }),
       );
-      rail.position.copy(base).setY(LAYOUT.towerBase + (MAX_FRAMES * LAYOUT.framePitch) / 2);
+      rail.position.copy(base).setY(LAYOUT.towerBase + (cap * LAYOUT.framePitch) / 2);
       rail.position.x -= 1.55;
       scene.add(rail);
       const frost = glowSprite(C.ice, 9, 0);
@@ -75,14 +85,16 @@ export class ThreadsView implements Part {
       scene.add(frost);
       this.frost.push(frost);
       this.pcLabels.push(this.reg.label('', base.clone().setY(0), { id: 'pc', minor: true, cls: 'pc' }));
-      this.reg.label(t.kind === 'carrier' ? `carrier ${t.name.slice(-1)}` : t.name, base.clone().setY(-0.6), {
-        id: carrier ? 'carriers' : 'threads',
-        minor: true,
-        cls: 'tname',
-      });
+      if (lab) this.reg.label('Your code', base.clone().setY(4), { id: 'lab', cls: 'lab' });
+      else
+        this.reg.label(carrier ? `carrier ${t.name.slice(-1)}` : t.name, base.clone().setY(-0.6), {
+          id: carrier ? 'carriers' : 'threads',
+          minor: true,
+          cls: 'tname',
+        });
 
       // Allocation: every thread keeps creating objects in the heap.
-      if (!carrier) {
+      if (t.kind === 'platform') {
         const f = new Flow(arc(base.clone().setY(3), new THREE.Vector3(base.x * 0.4, 0.8, LAYOUT.heap.z + HEAP_SIZE.d / 2 - 2), 3), {
           color: C.eden,
           count: 14,
@@ -108,6 +120,8 @@ export class ThreadsView implements Part {
       radius: 8,
       view: new THREE.Vector3(0.2, 0.35, 1),
     });
+    // The Lab's tower, with the heap its objects go to.
+    this.reg.anchor('lab', { center: new THREE.Vector3(LAYOUT.labX - 6, 7, LAYOUT.threadZ - 8), radius: 17, view: new THREE.Vector3(0.55, 0.45, 1) });
     this.reg.anchor('vthreads', { center: LAYOUT.vqueue.clone().setY(7), radius: 13, view: new THREE.Vector3(0.3, 0.45, 1) });
     this.reg.label('Threads & stacks', new THREE.Vector3(LAYOUT.platformX[1] + 2.5, 11, LAYOUT.threadZ), { id: 'threads' });
     this.reg.label('Virtual threads', LAYOUT.vqueue.clone().setY(LAYOUT.vqueue.y + 3.5), { id: 'vthreads' });
@@ -153,7 +167,8 @@ export class ThreadsView implements Part {
       for (let i = shown.length - 1; i >= 0; i--) if (shown[i].popped && shown[i].s <= 0) shown.splice(i, 1);
 
       const top = shown.length - 1;
-      shown.slice(0, MAX_FRAMES).forEach((f, depth) => {
+      const cap = capOf(t.kind);
+      shown.slice(0, cap).forEach((f, depth) => {
         framePosition(ti, depth, this.p);
         this.p.y += (1 - f.s) * 1.2;
         this.col.copy(TIER_COLOR[methods[f.method].tier]).multiplyScalar(depth === top ? 1.6 : 0.8);
@@ -165,7 +180,7 @@ export class ThreadsView implements Part {
       });
 
       const pcLabel = this.pcLabels[ti];
-      pcLabel.obj.position.copy(framePosition(ti, Math.min(shown.length, MAX_FRAMES), this.p)).setY(this.p.y + 0.8);
+      pcLabel.obj.position.copy(framePosition(ti, Math.min(shown.length, cap), this.p)).setY(this.p.y + 0.8);
       const m = t.frames.length ? methods[t.frames[t.frames.length - 1].method] : null;
       pcLabel.el.querySelector('span')!.textContent = m ? `pc ${String(t.pc).padStart(2, '0')} · ${m.name}` : 'idle';
       pcLabel.el.classList.toggle('frozen', this.sim.safepoint);

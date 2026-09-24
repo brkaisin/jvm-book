@@ -37,9 +37,7 @@ export class Panel {
       h('p', { class: 'summary', html: hs.summary }),
       hs.extra ? h('div', { class: 'extra', html: hs.extra }) : null,
       this.liveEl,
-      hs.actions?.length
-        ? h('div', { class: 'actions' }, ...hs.actions.map(([label, a]) => button(label, () => this.on.action(a), { class: 'act' })))
-        : null,
+      this.actions(hs),
       hs.fact ? h('p', { class: 'fact', html: `<b>Did you know?</b> ${hs.fact}` }) : null,
       h(
         'div',
@@ -53,6 +51,15 @@ export class Panel {
     this.root.classList.add('open');
     this.root.scrollTop = 0;
     this.refresh();
+  }
+
+  /** The main "poke" action first, then the extras. */
+  private actions(hs: Hotspot): HTMLElement | null {
+    const all: [string, ActionId, string][] = [
+      ...(hs.poke ? [[`▶ ${hs.poke.label}`, hs.poke.action, 'act primary'] as [string, ActionId, string]] : []),
+      ...(hs.actions ?? []).map(([label, a]): [string, ActionId, string] => [label, a, 'act']),
+    ];
+    return all.length ? h('div', { class: 'actions' }, ...all.map(([label, a, cls]) => button(label, () => this.on.action(a), { class: cls }))) : null;
   }
 
   hide(): void {

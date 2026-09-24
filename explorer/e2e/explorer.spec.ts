@@ -75,17 +75,17 @@ test('a first-time event gets explained', async ({ page }) => {
   await expect(page.locator('#panel')).toHaveClass(/open/);
 });
 
-test('hovering a thing explains what it is', async ({ page }) => {
+test('hovering a thing explains what it is and what a click does', async ({ page }) => {
   await enter(page, '#heap');
   await page.waitForTimeout(2500);
-  // Sweep the heap area until the tooltip shows up.
-  const box = page.viewportSize()!;
-  for (let x = 0.2; x < 0.6; x += 0.05) {
-    await page.mouse.move(box.width * x, box.height * 0.55);
-    if (await page.locator('#tip').isVisible()) break;
-  }
+  const at = await page.evaluate(() => {
+    const { world, regionCenter, screenOf } = (window as any).__jvm;
+    const free = world.sim.heap.regions.find((r: { role: string }) => r.role === 'free');
+    return screenOf(regionCenter(free.index));
+  });
+  await page.mouse.move(at.x, at.y);
   await expect(page.locator('#tip')).toBeVisible();
-  await expect(page.locator('#tip i')).toHaveText('click to learn more');
+  await expect(page.locator('#tip i')).toHaveText(/^Click: allocate 150 objects$/);
 });
 
 test('the embed mode shows only the scene and a call to action', async ({ page }) => {

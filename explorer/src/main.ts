@@ -22,9 +22,16 @@ import { Panel } from './ui/panel';
 import { Tour } from './ui/tour';
 import { CameraRig } from './view/cameraRig';
 import { sanitizePass } from './view/sanitizePass';
+import { regionCenter } from './view/layout';
 import type { Anchor } from './view/fx';
 import { LOADER_COLOR } from './view/loadingView';
 import { World } from './world';
+import { Sound, type Cue } from './audio/sound';
+import { Narrator } from './audio/narrator';
+import { NarratorView } from './ui/narratorView';
+import { loadPref, savePref } from './ui/prefs';
+import { AREAS } from './content';
+import { LabPanel } from './ui/labPanel';
 
 const EMBED = new URLSearchParams(location.search).has('embed');
 const HOME: Anchor = { center: new THREE.Vector3(-8, 0, -2), radius: 62, view: new THREE.Vector3(0.3, 0.62, 1) };
@@ -57,6 +64,7 @@ class App {
     byId('tour'),
     (step) => {
       this.select(step.id, true);
+      this.narrator.say(`${step.say} ${HOTSPOTS[step.id].see}`);
       if (step.action) this.action(step.action);
     },
     () => document.body.classList.remove('touring'),
@@ -69,12 +77,23 @@ class App {
     this.select(id);
   });
   private story!: Story;
-  private readonly moments = new MomentCard(byId('moment'), (id) => this.select(id));
+  private lab!: LabPanel;
+  private readonly sound = new Sound(loadPref('sound', true));
+  private readonly narrator = new Narrator(new NarratorView(byId('narrator')), loadPref('narrator', true));
+  private readonly moments = new MomentCard(
+    byId('moment'),
+    (id) => this.select(id),
+    (m) => {
+      this.sound.play('moment');
+      this.narrator.say(`${m.title}. ${m.text}`);
+    },
+  );
 
   /** Horizontal shift of the image, so the focus stays visible beside the panel. */
   private viewShift = 0;
   private time = 0;
   private uiTimer = 0;
+  private labTimer = 0;
   private labelsOn = true;
   private hovered: HotspotId | null = null;
   private down: { x: number; y: number; t: number } | null = null;
@@ -125,6 +144,11 @@ class App {
       (moment) => this.moments.push(moment),
       () => !EMBED && document.body.classList.contains('entered') && !this.tour.active,
     );
+    this.lab = new LabPanel(byId('lab'), this.world.lab, {
+      started: (s) => this.narrator.say(s ? `${s.title}. Watch ${s.watch}` : 'Running your code. Watch the gold tower and the heap.'),
+      close: () => this.toggleLab(false),
+    });
+    this.wireLab();
     this.wireInput();
     this.wireControls();
 
@@ -133,7 +157,22 @@ class App {
     this.renderer.setAnimationLoop(() => this.frame());
     // `?debug` exposes internals to automated tests (see test-e2e/).
     if (new URLSearchParams(location.search).has('debug'))
-      Object.assign(window, { __jvm: { THREE, renderer: this.renderer, scene: this.scene, camera: this.camera, world: this.world, app: this } });
+      Object.assign(window, {
+        __jvm: {
+          THREE,
+          renderer: this.renderer,
+          scene: this.scene,
+          camera: this.camera,
+          world: this.world,
+          app: this,
+          regionCenter,
+          /** Screen pixel of a world point, for tests that click on things. */
+          screenOf: (p: THREE.Vector3) => {
+            const v = p.clone().project(this.camera);
+            return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+          },
+        },
+      });
   }
 
   // ------------------------------------------------------------- flow
@@ -161,6 +200,7 @@ class App {
 
   private enter(flyHome = true) {
     document.body.classList.add('entered');
+    this.sound.unlock();
     this.rig.autoOrbit = 0;
     if (flyHome) this.rig.flyTo(HOME, 3.2);
     // After the tour has started (if any), so the welcome stays out of its way.
@@ -174,12 +214,57 @@ class App {
 
   select(id: HotspotId, fromTour = false) {
     if (!fromTour && this.tour.active) this.tour.interrupt();
+    if (!fromTour && id !== this.panel.current) this.narrator.say(`${HOTSPOTS[id].title}. ${HOTSPOTS[id].summary}`);
     this.world.onFocus(id);
     const anchor = this.world.reg.anchors.get(id)?.();
     if (anchor) this.rig.flyTo(anchor);
     this.panel.show(id);
     for (const l of this.world.reg.labels) l.el.classList.toggle('active', l.id === id);
     history.replaceState(null, '', `#${id}`);
+  }
+
+  private toggleLab(open = !this.lab.open) {
+    this.lab.toggle(open);
+    document.body.classList.toggle('lab-open', open);
+    if (!open) return;
+    this.closePanel();
+    this.map.close();
+    if (this.tour.active) this.tour.stop();
+    const anchor = this.world.reg.anchors.get('lab')?.();
+    if (anchor) this.rig.flyTo(anchor);
+  }
+
+  private wireLab() {
+    const lab = this.world.lab;
+    const said = new Set<string>();
+    lab.on('compiled', ({ method, tier }) => {
+      const key = `${method}@${tier}`;
+      if (said.has(key)) return;
+      said.add(key);
+      this.narrator.say(
+        tier === 3
+          ? `Your method ${method} is warm: C1 just compiled it. Its frames turn green, and it runs about four times faster.`
+          : `${method} is hot: C2 recompiled it with full optimisations. Orange frames, and it flies.`,
+      );
+    });
+    lab.on('crashed', (e) => {
+      this.sound.play('deopt');
+      this.feed.push(`<b>${e.name}</b> at line ${e.line} in your code`, '#ff3b3b', 'lab');
+      const why: Record<string, string> = {
+        StackOverflowError: 'Every call pushed a new frame, and the stack ran out of room. The tower hit the ceiling.',
+        ArithmeticException: 'An integer division by zero: the JVM throws instead of returning a value.',
+        NullPointerException: 'The code used a reference that points to nothing.',
+        ArrayIndexOutOfBoundsException: 'The code read past the end of an array: the JVM checks every array access.',
+      };
+      this.narrator.say(`${e.name}! ${why[e.name] ?? e.message}`);
+    });
+    lab.on('state', (s) => {
+      if (s !== 'finished') return;
+      this.sound.play('gcDone');
+      const vm = lab.vm;
+      this.narrator.say(`Your program finished after ${vm ? vm.executed.toLocaleString('en') : 'some'} bytecode instructions. Its objects are now garbage: the next collection will reclaim them.`);
+      this.feed.push(`Your program finished: ${vm?.executed.toLocaleString('en')} instructions`, '#ffd166', 'lab');
+    });
   }
 
   private closePanel() {
@@ -189,17 +274,36 @@ class App {
   }
 
   private action(a: ActionId) {
-    this.world.run(a);
-    if (a === 'toggleGc') this.feed.push(`Collector switched to <b>${this.world.sim.collector}</b>`, '#c8f7ff', 'gc');
-    if (a === 'spawnVthreads') this.feed.push(`Started <b>64</b> virtual threads`, '#d7b8ff', 'vthreads');
+    if (a === 'openLab') return this.toggleLab(true);
+    const fb = this.world.run(a);
+    if (fb) {
+      this.feed.push(fb.text, fb.color, fb.id);
+      this.sound.play(fb.cue);
+    }
     this.panel.refresh();
     this.syncControls();
+  }
+
+  /** Clicking a thing in the world: open it, and make it do its thing. */
+  private poke(id: HotspotId, at: THREE.Vector3 | null) {
+    const hs = HOTSPOTS[id];
+    if (id !== this.panel.current) this.select(id);
+    if (at) this.world.effects.ripple(at, AREAS[hs.area].color);
+    this.sound.play('click');
+    if (hs.poke) this.action(hs.poke.action);
   }
 
   // ------------------------------------------------------------- wiring
 
   private wireFeed() {
     const s = this.world.sim;
+    const play = (cue: Cue) => () => this.sound.play(cue);
+    s.jit.on('installed', (nm) => this.sound.play(nm.tier === 3 ? 'c1' : 'c2'));
+    s.jit.on('deopt', play('deopt'));
+    s.heap.on('gcStart', (e) => this.sound.play(e.collector === 'G1' ? 'gcFreeze' : 'gcConcurrent'));
+    s.heap.on('gcEnd', play('gcDone'));
+    s.on('classLoaded', play('load'));
+    s.threads.on('mount', play('mount'));
     s.jit.on('installed', (nm) => {
       const m = s.jit.methods[nm.method];
       this.feed.push(`${nm.tier === 4 ? '<b>C2</b>' : 'C1'} compiled <code>${m.name}</code>`, nm.tier === 4 ? '#ff8a3d' : '#2ee6a6', nm.tier === 4 ? 'c2' : 'c1');
@@ -226,14 +330,16 @@ class App {
       const d = this.down;
       this.down = null;
       if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || performance.now() - d.t > 600) return;
-      const id = this.pickAt(e, true);
-      if (id) this.select(id);
+      const hit = this.pickAt(e, true);
+      if (hit) this.poke(hit.id, hit.point);
     });
     el.addEventListener('pointermove', (e) => {
       if (EMBED || e.buttons || e.pointerType !== 'mouse') return;
-      this.hover(this.pickAt(e, false), e);
+      this.hover(this.pickAt(e, false)?.id ?? null, e);
     });
     el.addEventListener('pointerleave', () => this.hover(null));
+    // Browsers only allow audio after a gesture (deep links skip the Enter button).
+    addEventListener('pointerdown', () => this.sound.unlock(), { once: true });
 
     addEventListener('hashchange', () => {
       const id = decodeURIComponent(location.hash.slice(1));
@@ -259,12 +365,15 @@ class App {
     });
 
     addEventListener('keydown', (e) => {
-      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      const typing = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable);
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
       const keys: Record<string, () => void> = {
         ArrowRight: () => this.tour.active && this.tour.next(),
         ArrowLeft: () => this.tour.active && this.tour.prev(),
         Escape: () => {
           this.legend.close();
+          if (this.lab.open) return this.toggleLab(false);
           if (this.tour.active) this.tour.stop();
           else this.closePanel();
         },
@@ -275,6 +384,9 @@ class App {
         h: () => this.rig.flyTo(HOME),
         m: () => this.map.toggle(),
         k: () => this.legend.toggle(),
+        s: () => this.toggleSound(),
+        c: () => this.toggleLab(),
+        n: () => this.toggleNarrator(),
         '?': () => this.legend.toggle(),
         t: () => (this.tour.active ? this.tour.stop() : this.startTour()),
       };
@@ -290,19 +402,38 @@ class App {
     bar.replaceChildren(
       button('<b>☰</b> Map', () => this.map.toggle(), { title: 'All hotspots (M)', id: 'c-map' }),
       button('<b>✦</b> Tour', () => (this.tour.active ? this.tour.stop() : this.startTour()), { title: 'Guided tour (T)' }),
+      button('<b>&lt;/&gt;</b> Code', () => this.toggleLab(), { title: 'Code Lab: run your own Java (C)', id: 'c-lab' }),
       button('<b>?</b> Legend', () => this.legend.toggle(), { title: 'What the colours mean (K)' }),
       button('<b>⌂</b>', () => this.rig.flyTo(HOME), { title: 'Overview (H)' }),
       button('<b>❚❚</b>', () => this.togglePause(), { title: 'Pause the JVM (Space)', id: 'c-pause' }),
       button('<b>♻</b> GC', () => this.action('gcNow'), { title: 'Collect garbage now (G)' }),
       button('G1', () => this.action('toggleGc'), { title: 'Switch between G1 and ZGC (Z)', id: 'c-gc' }),
       button('<b>Aa</b>', () => this.toggleLabels(), { title: 'Labels (L)', id: 'c-labels', class: 'on' }),
+      button('<b>♪</b>', () => this.toggleSound(), { title: 'Sound (S)', id: 'c-sound' }),
+      button('<b>❝</b> Voice', () => this.toggleNarrator(), { title: 'Narrator (N)', id: 'c-narrator' }),
     );
+    this.syncControls();
+  }
+
+  private toggleSound() {
+    this.sound.unlock();
+    this.sound.setEnabled(!this.sound.enabled);
+    savePref('sound', this.sound.enabled);
+    this.syncControls();
+  }
+
+  private toggleNarrator() {
+    this.narrator.setEnabled(!this.narrator.enabled);
+    savePref('narrator', this.narrator.enabled);
+    this.syncControls();
   }
 
   private syncControls() {
     byId('c-gc').textContent = this.world.sim.collector;
     byId('c-pause').innerHTML = this.world.sim.paused ? '<b>▶</b>' : '<b>❚❚</b>';
     byId('c-labels').classList.toggle('on', this.labelsOn);
+    byId('c-sound').classList.toggle('on', this.sound.enabled);
+    byId('c-narrator').classList.toggle('on', this.narrator.enabled);
   }
 
   private togglePause() {
@@ -318,14 +449,14 @@ class App {
 
   // ------------------------------------------------------------- picking
 
-  private pickAt(e: PointerEvent, commit: boolean): HotspotId | null {
+  private pickAt(e: PointerEvent, commit: boolean): { id: HotspotId; point: THREE.Vector3 } | null {
     const r = this.renderer.domElement.getBoundingClientRect();
     this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
     for (const hit of this.raycaster.intersectObjects(this.world.reg.pickables, true)) {
       if (!hit.object.visible) continue;
       const id = this.world.reg.resolve(hit, commit);
-      if (id) return id;
+      if (id) return { id, point: hit.point };
     }
     return null;
   }
@@ -336,7 +467,9 @@ class App {
     document.body.style.cursor = id ? 'pointer' : '';
     tip.hidden = !id;
     if (!id || !e) return;
-    tip.replaceChildren(h('b', {}, HOTSPOTS[id].title), h('span', {}, HOTSPOTS[id].see), h('i', {}, 'click to learn more'));
+    const hs = HOTSPOTS[id];
+    const hint = hs.poke ? `Click: ${hs.poke.label.toLowerCase()}` : 'click to learn more';
+    tip.replaceChildren(h('b', {}, hs.title), h('span', {}, hs.see), h('i', {}, hint));
     tip.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 14}px)`;
   }
 
@@ -347,6 +480,7 @@ class App {
     const dt = Math.min(this.timer.getDelta(), 0.1);
     this.time += dt;
     this.world.update(dt, this.time);
+    this.sound.setFrozen(this.world.sim.safepoint);
     this.rig.update(dt);
     this.updateViewShift(dt);
 
@@ -356,6 +490,10 @@ class App {
       this.hud.update(this.world.sim.stats());
       this.panel.refresh();
       this.updateLabels();
+    }
+    if (this.lab.open && (this.labTimer -= dt) <= 0) {
+      this.labTimer = 0.1;
+      this.lab.refresh();
     }
     this.updateBanner();
     this.composer.render();
@@ -367,7 +505,8 @@ class App {
     const panel = byId('panel');
     const open = !!this.panel.current;
     const wide = innerWidth > 800;
-    const target = open ? (wide ? (panel.offsetWidth + 16) / 2 : (panel.offsetHeight + 16) / 2) : 0;
+    const lab = this.lab.open && wide ? -(byId('lab').offsetWidth + 16) / 2 : 0;
+    const target = lab || (open ? (wide ? (panel.offsetWidth + 16) / 2 : (panel.offsetHeight + 16) / 2) : 0);
     const next = THREE.MathUtils.lerp(this.viewShift, target, 1 - Math.exp(-6 * dt));
     if (Math.abs(next - this.viewShift) < 0.01 && Math.abs(next - target) < 0.5) return;
     this.viewShift = next;

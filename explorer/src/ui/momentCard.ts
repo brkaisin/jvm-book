@@ -14,6 +14,8 @@ export class MomentCard {
   constructor(
     private readonly root: HTMLElement,
     private readonly onShow: (id: HotspotId) => void,
+    /** Called when a moment appears (to narrate it). */
+    private readonly onDisplay: (m: Moment) => void = () => {},
   ) {
     // Reading takes time: do not auto-dismiss while the pointer is on the card.
     root.addEventListener('pointerenter', () => window.clearTimeout(this.timer));
@@ -51,6 +53,7 @@ export class MomentCard {
       ),
     );
     this.root.classList.add('open');
+    this.onDisplay(m);
     this.arm();
   }
 

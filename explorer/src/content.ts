@@ -4,7 +4,25 @@
 export type AreaId = 'outside' | 'loading' | 'memory' | 'threads' | 'engine' | 'gc' | 'beyond';
 
 /** Things a panel button can ask the simulation to do. */
-export type ActionId = 'gcNow' | 'toggleGc' | 'spawnVthreads' | 'hotMethod' | 'deopt';
+export type ActionId =
+  | 'gcNow'
+  | 'toggleGc'
+  | 'spawnVthreads'
+  | 'hotMethod'
+  | 'deopt'
+  | 'allocBurst'
+  | 'loadClass'
+  | 'callDeeper'
+  | 'nativeCall'
+  | 'jfrDump'
+  | 'openLab';
+
+/** What clicking the thing itself does in the world. */
+export interface Poke {
+  action: ActionId;
+  /** Shown on hover and as the panel's main button, e.g. "Collect garbage now". */
+  label: string;
+}
 
 export interface Hotspot {
   area: AreaId;
@@ -19,6 +37,9 @@ export interface Hotspot {
   fact?: string;
   /** [label, href] pairs into the book. */
   links: [string, string][];
+  /** Clicking the element in the world does this (and opens the panel). */
+  poke?: Poke;
+  /** Extra buttons in the panel. */
   actions?: [string, ActionId][];
 }
 
@@ -52,7 +73,7 @@ const bar = (cells: [string, number, string?][]): string =>
     .map(([label, w, cls]) => `<span class="${cls || ''}" style="flex:${w}">${label}</span>`)
     .join('')}</div>`;
 
-export const HOTSPOTS = {
+const HOTSPOT_DATA = {
   jvm: {
     area: 'beyond',
     title: 'The Java Virtual Machine',
@@ -78,6 +99,7 @@ export const HOTSPOTS = {
       ['Ch. 2 — From source code to execution', P1 + '02-from-source-to-execution.html#the-journey-of-your-code'],
       ['Ch. 25 — The JVM language ecosystem', P7 + '25-language-ecosystem.html'],
     ],
+    poke: { action: 'loadClass', label: 'Compile & load a new class' },
   },
   compiler: {
     area: 'outside',
@@ -90,6 +112,7 @@ export const HOTSPOTS = {
       ['Ch. 2 — Step 1: compilation', P1 + '02-from-source-to-execution.html#step-1-compilation--source-to-bytecode'],
       ['Ch. 2 — scalac vs javac', P1 + '02-from-source-to-execution.html#the-difference-between-scalac-and-javac'],
     ],
+    poke: { action: 'loadClass', label: 'Compile & load a new class' },
   },
   classfile: {
     area: 'outside',
@@ -110,6 +133,7 @@ export const HOTSPOTS = {
       ['Ch. 5 — Anatomy of a class file', P2 + '05-bytecode.html#anatomy-of-a-class-file'],
       ['Ch. 5 — The constant pool', P2 + '05-bytecode.html#the-constant-pool'],
     ],
+    poke: { action: 'loadClass', label: 'Load a new class' },
   },
 
   // ---------------------------------------------------------------- loading
@@ -124,6 +148,7 @@ export const HOTSPOTS = {
       ['Ch. 4 — The three built-in class loaders', P2 + '04-class-loaders.html#the-three-built-in-class-loaders'],
       ['Ch. 4 — Parent delegation', P2 + '04-class-loaders.html#the-parent-delegation-model'],
     ],
+    poke: { action: 'loadClass', label: 'Load a new class' },
   },
   verifier: {
     area: 'loading',
@@ -136,6 +161,7 @@ export const HOTSPOTS = {
       ['Ch. 2 — Bytecode verification', P1 + '02-from-source-to-execution.html#step-4-bytecode-verification--trust-but-verify'],
       ['Ch. 4 — The class loading lifecycle', P2 + '04-class-loaders.html#the-class-loading-lifecycle'],
     ],
+    poke: { action: 'loadClass', label: 'Verify a new class' },
   },
   modules: {
     area: 'loading',
@@ -148,6 +174,7 @@ export const HOTSPOTS = {
       ['Ch. 23 — The module system', P7 + '23-module-system.html#the-module-system-project-jigsaw'],
       ['Ch. 23 — Integrity by default', P7 + '23-module-system.html#integrity-by-default'],
     ],
+    poke: { action: 'loadClass', label: 'Load a class from a module' },
   },
   aotcache: {
     area: 'loading',
@@ -176,6 +203,7 @@ export const HOTSPOTS = {
       ['Ch. 6 — Metaspace', P2 + '06-runtime-data-areas.html#the-method-area--metaspace--where-class-metadata-lives'],
       ['Ch. 4 — Class unloading', P2 + '04-class-loaders.html#class-unloading'],
     ],
+    poke: { action: 'loadClass', label: 'Load a new class' },
   },
   heap: {
     area: 'memory',
@@ -188,6 +216,7 @@ export const HOTSPOTS = {
       ['Ch. 6 — The heap', P2 + '06-runtime-data-areas.html#the-heap--where-objects-live'],
       ['Ch. 10 — G1 regions', P3 + '10-gc-tour.html#g1-garbage-first--the-default'],
     ],
+    poke: { action: 'allocBurst', label: 'Allocate 150 objects' },
   },
   eden: {
     area: 'memory',
@@ -200,6 +229,7 @@ export const HOTSPOTS = {
       ['Ch. 6 — Young generation', P2 + '06-runtime-data-areas.html#the-heap--where-objects-live'],
       ['Ch. 9 — Generational collection', P3 + '09-gc-fundamentals.html#generational-collection-putting-it-together'],
     ],
+    poke: { action: 'allocBurst', label: 'Allocate 150 objects' },
   },
   survivor: {
     area: 'memory',
@@ -212,6 +242,7 @@ export const HOTSPOTS = {
       ['Ch. 9 — The core algorithms', P3 + '09-gc-fundamentals.html#the-core-algorithms'],
       ['Ch. 8 — The mark word (GC age)', P3 + '08-object-layout.html#the-mark-word'],
     ],
+    poke: { action: 'gcNow', label: 'Run a young collection' },
   },
   old: {
     area: 'memory',
@@ -224,6 +255,7 @@ export const HOTSPOTS = {
       ['Ch. 6 — Old generation', P2 + '06-runtime-data-areas.html#the-heap--where-objects-live'],
       ['Ch. 10 — G1', P3 + '10-gc-tour.html#g1-garbage-first--the-default'],
     ],
+    poke: { action: 'gcNow', label: 'Collect garbage now' },
   },
   humongous: {
     area: 'memory',
@@ -236,6 +268,7 @@ export const HOTSPOTS = {
       ['Ch. 10 — G1 regions', P3 + '10-gc-tour.html#g1-garbage-first--the-default'],
       ['Ch. 11 — A GC case study', P3 + '11-gc-tuning.html#example-diagnosing-a-gc-issue'],
     ],
+    poke: { action: 'gcNow', label: 'Collect garbage now' },
   },
   object: {
     area: 'memory',
@@ -294,6 +327,7 @@ export const HOTSPOTS = {
       ['Ch. 15 — Platform threads', P5 + '15-threads.html#platform-threads-a-11-mapping'],
       ['Ch. 6 — The stack', P2 + '06-runtime-data-areas.html#the-stack--per-thread-per-method'],
     ],
+    poke: { action: 'callDeeper', label: 'Make a thread call deeper' },
   },
   frame: {
     area: 'threads',
@@ -311,6 +345,7 @@ export const HOTSPOTS = {
       ['Ch. 6 — What’s in a stack frame', P2 + '06-runtime-data-areas.html#the-stack--per-thread-per-method'],
       ['Ch. 5 — Stack-based architecture', P2 + '05-bytecode.html#stack-based-architecture'],
     ],
+    poke: { action: 'callDeeper', label: 'Push more frames' },
   },
   pc: {
     area: 'threads',
@@ -320,6 +355,7 @@ export const HOTSPOTS = {
       'Each thread has a tiny <b>program counter</b>: the offset of the bytecode instruction it is executing right now in its current method. The ticking number above each tower is its PC.',
     fact: 'While a thread runs a native method, its PC is undefined.',
     links: [['Ch. 6 — The PC register', P2 + '06-runtime-data-areas.html#the-pc-register--where-am-i']],
+    poke: { action: 'callDeeper', label: 'Push more frames' },
   },
   nativestack: {
     area: 'threads',
@@ -329,6 +365,20 @@ export const HOTSPOTS = {
       'When Java calls C code (JNI or the FFM API) that code needs an ordinary C stack. In HotSpot, Java frames and native frames share the same thread stack, drawn here as the dark base of each tower.',
     fact: 'A crash in native code takes the whole JVM down with it: no exception, just an <code>hs_err_pid.log</code>.',
     links: [['Ch. 6 — The native method stack', P2 + '06-runtime-data-areas.html#the-native-method-stack']],
+    poke: { action: 'nativeCall', label: 'Call a native function' },
+  },
+  lab: {
+    area: 'threads',
+    title: 'Your code, running',
+    see: 'The gold tower is the thread running the program you write in the Code Lab. Each slab is one of your method calls, coloured like the others by how it runs.',
+    summary:
+      'Open the <b>Code Lab</b>, write a little Java program (or pick an example), and watch it run on this JVM: compiled to real <b>bytecode</b>, executed one instruction at a time on the <b>operand stack</b>, its objects landing in Eden, its hot methods compiled by the JIT, its garbage collected.',
+    fact: 'The Lab’s stack is tiny (46 frames) so that a runaway recursion hits the ceiling quickly: try the StackOverflowError example.',
+    links: [
+      ['Ch. 5 — Bytecode', P2 + '05-bytecode.html#your-first-bytecode-disassembly'],
+      ['Ch. 6 — The stack', P2 + '06-runtime-data-areas.html#the-stack--per-thread-per-method'],
+    ],
+    poke: { action: 'openLab', label: 'Open the Code Lab' },
   },
   vthreads: {
     area: 'threads',
@@ -341,7 +391,7 @@ export const HOTSPOTS = {
       ['Ch. 18 — How virtual threads work', P5 + '18-virtual-threads.html#how-virtual-threads-work'],
       ['Ch. 18 — Structured concurrency', P5 + '18-virtual-threads.html#structured-concurrency-preview-in-27'],
     ],
-    actions: [['Spawn 64 virtual threads', 'spawnVthreads']],
+    poke: { action: 'spawnVthreads', label: 'Start 64 virtual threads' },
   },
   carriers: {
     area: 'threads',
@@ -354,6 +404,7 @@ export const HOTSPOTS = {
       ['Ch. 18 — Pinning (mostly solved)', P5 + '18-virtual-threads.html#pinning-mostly-solved'],
       ['Ch. 17 — Thread pools', P5 + '17-juc-toolbox.html#thread-pools-and-executors'],
     ],
+    poke: { action: 'spawnVthreads', label: 'Start 64 virtual threads' },
   },
 
   // ---------------------------------------------------------------- engine
@@ -368,6 +419,7 @@ export const HOTSPOTS = {
       ['Ch. 7 — The interpreter', P2 + '07-execution-engine.html#the-interpreter'],
       ['Ch. 5 — Your first disassembly', P2 + '05-bytecode.html#your-first-bytecode-disassembly'],
     ],
+    poke: { action: 'hotMethod', label: 'Make a method hot' },
   },
   c1: {
     area: 'engine',
@@ -380,7 +432,7 @@ export const HOTSPOTS = {
       ['Ch. 7 — Tiered compilation', P2 + '07-execution-engine.html#tiered-compilation'],
       ['Ch. 19 — Tiered compilation recap', P6 + '19-jit-deep-dive.html#a-quick-recap-tiered-compilation'],
     ],
-    actions: [['Heat up a method', 'hotMethod']],
+    poke: { action: 'hotMethod', label: 'Make a method hot' },
   },
   c2: {
     area: 'engine',
@@ -393,7 +445,7 @@ export const HOTSPOTS = {
       ['Ch. 19 — Method inlining', P6 + '19-jit-deep-dive.html#method-inlining-the-king-of-optimizations'],
       ['Ch. 19 — Escape analysis', P6 + '19-jit-deep-dive.html#escape-analysis'],
     ],
-    actions: [['Heat up a method', 'hotMethod']],
+    poke: { action: 'hotMethod', label: 'Make a method hot' },
   },
   deopt: {
     area: 'engine',
@@ -406,7 +458,7 @@ export const HOTSPOTS = {
       ['Ch. 7 — Deoptimization', P2 + '07-execution-engine.html#deoptimization'],
       ['Ch. 19 — Speculation and deopt', P6 + '19-jit-deep-dive.html#speculative-optimization-and-deoptimization'],
     ],
-    actions: [['Break a speculation', 'deopt']],
+    poke: { action: 'deopt', label: 'Break a speculation' },
   },
   codecache: {
     area: 'engine',
@@ -416,6 +468,7 @@ export const HOTSPOTS = {
       'Where the JIT puts the machine code it produces, one block per compiled method (an <b>nmethod</b>), coloured by tier: <span class="k c1">C1</span> or <span class="k c2">C2</span>. It is native memory, split into segments for JVM internals, profiled and fully optimised code.',
     fact: 'If it fills up, the JIT stops compiling and your app silently slows down. Check it with <code>jcmd &lt;pid&gt; Compiler.codecache</code>.',
     links: [['Ch. 6 — The code cache', P2 + '06-runtime-data-areas.html#the-code-cache--where-compiled-code-lives']],
+    poke: { action: 'hotMethod', label: 'Compile another method' },
   },
 
   // ---------------------------------------------------------------- gc
@@ -431,10 +484,8 @@ export const HOTSPOTS = {
       ['Ch. 10 — A tour of the collectors', P3 + '10-gc-tour.html#choosing-a-garbage-collector'],
       ['Ch. 9 — Safepoints', P3 + '09-gc-fundamentals.html#safepoints-where-the-jvm-can-pause-you'],
     ],
-    actions: [
-      ['Collect now', 'gcNow'],
-      ['Toggle G1 / ZGC', 'toggleGc'],
-    ],
+    poke: { action: 'gcNow', label: 'Collect garbage now' },
+    actions: [['Switch G1 / ZGC', 'toggleGc']],
   },
 
   // ---------------------------------------------------------------- beyond
@@ -473,6 +524,7 @@ export const HOTSPOTS = {
       ['Ch. 24 — The FFM API', P7 + '24-native-interop.html#the-ffm-api-the-modern-way-java-22'],
       ['Ch. 24 — JNI', P7 + '24-native-interop.html#jni-the-old-way'],
     ],
+    poke: { action: 'nativeCall', label: 'Call a native function' },
   },
   jfr: {
     area: 'beyond',
@@ -486,10 +538,12 @@ export const HOTSPOTS = {
       ['Ch. 21 — Java Flight Recorder', P6 + '21-monitoring.html#java-flight-recorder-jfr'],
       ['Ch. 21 — jcmd', P6 + '21-monitoring.html#jcmd-the-swiss-army-knife'],
     ],
+    poke: { action: 'jfrDump', label: 'Dump a recording' },
   },
 } satisfies Record<string, Hotspot>;
 
-export type HotspotId = keyof typeof HOTSPOTS;
+export type HotspotId = keyof typeof HOTSPOT_DATA;
+export const HOTSPOTS: Record<HotspotId, Hotspot> = HOTSPOT_DATA;
 
 // The guided tour: follow a program from source file to running machine code.
 export const TOUR: TourStep[] = [

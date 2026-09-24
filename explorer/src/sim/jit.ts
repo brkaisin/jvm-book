@@ -112,8 +112,17 @@ export class JitSim extends Emitter<JitEvents> {
   pickMethod(): Method {
     const total = this.methods.reduce((s, m) => s + m.weight, 0);
     let r = this.rng.next() * total;
-    for (const m of this.methods) if ((r -= m.weight) < 0) return m;
-    return this.methods[this.methods.length - 1];
+    for (const m of this.methods) if (m.weight > 0 && (r -= m.weight) < 0) return m;
+    return this.methods[0];
+  }
+
+  /** Adds a method the background threads never call (the Code Lab's); returns it. */
+  register(name: string): Method {
+    const existing = this.methods.find((m) => m.name === name && m.weight === 0);
+    if (existing) return existing;
+    const m: Method = { name, weight: 0, index: this.methods.length, tier: 0, invocations: 0, compiling: null, deopts: 0 };
+    this.methods.push(m);
+    return m;
   }
 
   invoke(method: number, count = 1): void {
@@ -126,7 +135,9 @@ export class JitSim extends Emitter<JitEvents> {
 
   /** Makes the next still-interpreted (or C1) method hot at once. */
   heatUp(): Method | null {
-    const m = this.methods.find((x) => x.tier === 0 && x.compiling === null) ?? this.methods.find((x) => x.tier === 3 && x.compiling === null);
+    // Only the background program's methods: the Code Lab's heat up by running.
+    const ours = this.methods.filter((x) => x.weight > 0 && x.compiling === null);
+    const m = ours.find((x) => x.tier === 0) ?? ours.find((x) => x.tier === 3);
     if (!m) return null;
     this.invoke(m.index, (m.tier === 0 ? this.o.c1Threshold : this.o.c2Threshold) - m.invocations + 1);
     return m;

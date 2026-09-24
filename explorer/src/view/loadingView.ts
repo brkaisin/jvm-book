@@ -47,6 +47,7 @@ export class LoadingView implements Part {
     this.path.add(new THREE.LineCurve3(LAYOUT.loaders, LAYOUT.verifier));
     this.bytecodeFlow = new Flow(arc(LAYOUT.metaspace, LAYOUT.interpreter, 10), { color: C.interp, count: 60, speed: 0.09, jitter: 0.8 });
     scene.add(this.bytecodeFlow.points);
+    this.reg.flowLabel(this.bytecodeFlow.curve, 'bytecode → interpreter', 'interpreter');
     sim.on('classLoaded', ({ klass }) => {
       this.crystals[klass].flash = 1;
     });
@@ -162,7 +163,7 @@ export class LoadingView implements Part {
         uniform vec3 color;
         varying vec2 vUv;
         void main() {
-          float scan = smoothstep(0.035, 0.0, abs(vUv.y - fract(time * 0.45)));
+          float scan = 1.0 - smoothstep(0.0, 0.035, abs(vUv.y - fract(time * 0.45)));
           float grid = step(0.94, fract(vUv.x * 14.0)) + step(0.94, fract(vUv.y * 20.0));
           float edge = step(0.97, max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)) * 2.0);
           float a = scan * 0.9 + grid * 0.08 + edge * 0.8 + 0.03;

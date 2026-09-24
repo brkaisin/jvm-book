@@ -81,7 +81,8 @@ export class World {
           ['Regions', `${st.regions.eden} E · ${st.regions.survivor} S · ${st.regions.old} O · ${st.regions.humongous} H · ${st.regions.free} free`],
         ];
       case 'object': {
-        const o = this.heapView.selectedObject;
+        // Opened before any object existed (a deep link): pick one as soon as we can.
+        const o = this.heapView.selectedObject ?? this.heapView.selectAny();
         if (!o) return [['Tip', 'Click any small cube in the heap']];
         const k = KLASSES[o.klass];
         return [

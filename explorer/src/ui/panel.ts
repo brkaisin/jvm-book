@@ -33,6 +33,7 @@ export class Panel {
       { class: 'panel-body' },
       h('div', { class: 'chip', style: `--c:${area.color}` }, area.label),
       h('h2', {}, hs.title),
+      h('div', { class: 'see' }, h('b', {}, 'What you’re seeing'), h('span', { html: hs.see })),
       h('p', { class: 'summary', html: hs.summary }),
       hs.extra ? h('div', { class: 'extra', html: hs.extra }) : null,
       this.liveEl,

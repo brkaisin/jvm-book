@@ -4,9 +4,10 @@
 // failed speculation sends a red spark back to the interpreter.
 
 import * as THREE from 'three';
+import type { HotspotId } from '../content';
 import type { JvmSim } from '../sim/jvm';
 import { SEGMENT_SLOTS, type NMethod, type Segment } from '../sim/jit';
-import { C, Flow, Sparks, arc, edged, glowSprite, textTexture, type Part, type Registry } from './fx';
+import { C, Flow, Sparks, arc, commitInstances, edged, glowSprite, textTexture, type Part, type Registry } from './fx';
 import { LAYOUT } from './layout';
 
 const SEGMENTS: readonly Segment[] = ['nonNmethod', 'profiled', 'nonProfiled'];
@@ -46,14 +47,15 @@ export class EngineView implements Part {
     this.c2 = this.buildC2();
     this.blocks = this.buildCodeCache(scene);
 
-    const flow = (curve: THREE.Curve<THREE.Vector3>, color: THREE.ColorRepresentation, o = {}) => {
-      const f = new Flow(curve, { color, count: 26, speed: 0.12, size: 0.7, ...o });
+    const flow = (curve: THREE.Curve<THREE.Vector3>, color: THREE.ColorRepresentation, label: string, id: HotspotId) => {
+      const f = new Flow(curve, { color, count: 26, speed: 0.12, size: 0.7, opacity: 0.55 });
       scene.add(f.points);
       this.flows.push(f);
+      this.reg.flowLabel(curve, label, id);
     };
-    // Compiled code is what the threads end up running.
-    flow(arc(LAYOUT.codecache.clone().setY(2), new THREE.Vector3(LAYOUT.carrierX[1], 8, LAYOUT.threadZ), 14), C.c2, { opacity: 0.55 });
-    flow(arc(LAYOUT.interpreter, new THREE.Vector3(LAYOUT.platformX[3], 8, LAYOUT.threadZ), 6), C.interp, { opacity: 0.55 });
+    // What the threads end up running: compiled code, or the interpreter.
+    flow(arc(LAYOUT.codecache.clone().setY(2), new THREE.Vector3(LAYOUT.carrierX[1], 8, LAYOUT.threadZ), 14), C.c2, 'compiled code → threads', 'codecache');
+    flow(arc(LAYOUT.interpreter, new THREE.Vector3(LAYOUT.platformX[3], 8, LAYOUT.threadZ), 6), C.interp, 'interpreted code → threads', 'interpreter');
 
     const jit = sim.jit;
     jit.on('compileStart', ({ tier }) => {
@@ -133,9 +135,7 @@ export class EngineView implements Part {
         if (nm.notEntrant) this.col.lerp(C.deopt, 0.6).multiplyScalar(0.4 + 0.3 * Math.sin(time * 10));
         this.blocks.setColorAt(n++, this.col);
       });
-    this.blocks.count = n;
-    this.blocks.instanceMatrix.needsUpdate = true;
-    this.blocks.instanceColor!.needsUpdate = true;
+    commitInstances(this.blocks, n);
   }
 
   // ------------------------------------------------------------- build

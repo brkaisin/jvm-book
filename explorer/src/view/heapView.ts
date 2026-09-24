@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { HotspotId } from '../content';
 import { HUMONGOUS_REGIONS, REGION_COUNT, REGION_SLOTS, type HeapObject, type RegionRole } from '../sim/heap';
 import type { JvmSim } from '../sim/jvm';
-import { C, edged, easeInOut, glowSprite, type Anchor, type Part, type Registry } from './fx';
+import { C, commitInstances, edged, easeInOut, glowSprite, type Anchor, type Part, type Registry } from './fx';
 import { HEAP_SIZE, LAYOUT, regionCenter, slotPosition } from './layout';
 
 export const ROLE_COLOR: Record<RegionRole, THREE.Color> = {
@@ -173,9 +173,7 @@ export class HeapView implements Part {
       this.objects.setColorAt(n, this.col);
       this.instanceObj[n++] = o;
     }
-    this.objects.count = n;
-    this.objects.instanceMatrix.needsUpdate = true;
-    if (this.objects.instanceColor) this.objects.instanceColor.needsUpdate = true;
+    commitInstances(this.objects, n);
 
     this.updateDrone(dt, time, collecting, marking, sweepX);
     this.updateSelection(time);

@@ -9,7 +9,7 @@ import type { JvmSim } from '../sim/jvm';
 import type { Tier } from '../sim/jit';
 import type { VirtualThread } from '../sim/threads';
 import { HUMONGOUS_REGIONS, REGION_COUNT } from '../sim/heap';
-import { C, Flow, approach, arc, edged, glowSprite, type Label, type Part, type Registry } from './fx';
+import { C, Flow, approach, arc, commitInstances, edged, glowSprite, type Label, type Part, type Registry } from './fx';
 import { HEAP_SIZE, LAYOUT, framePosition, regionCenter, towerBase } from './layout';
 
 export const TIER_COLOR: Record<Tier, THREE.Color> = { 0: C.interp, 3: C.c1, 4: C.c2 };
@@ -91,6 +91,7 @@ export class ThreadsView implements Part {
           jitter: 0.6,
         });
         scene.add(f.points);
+        if (this.allocFlows.length === 0) this.reg.flowLabel(f.curve, 'new objects → Eden', 'eden', 0.55);
         this.allocFlows.push(f);
       }
     });
@@ -169,9 +170,7 @@ export class ThreadsView implements Part {
       pcLabel.el.querySelector('span')!.textContent = m ? `pc ${String(t.pc).padStart(2, '0')} · ${m.name}` : 'idle';
       pcLabel.el.classList.toggle('frozen', this.sim.safepoint);
     });
-    this.frames.count = n;
-    this.frames.instanceMatrix.needsUpdate = true;
-    this.frames.instanceColor!.needsUpdate = true;
+    commitInstances(this.frames, n);
   }
 
   private orbTarget(v: VirtualThread, time: number, out: THREE.Vector3): THREE.Vector3 {
@@ -213,8 +212,6 @@ export class ThreadsView implements Part {
       this.orbs.setColorAt(n++, this.col.lerp(C.ice, this.freeze * 0.6));
     }
     for (const id of this.orbPos.keys()) if (!alive.has(id)) this.orbPos.delete(id);
-    this.orbs.count = n;
-    this.orbs.instanceMatrix.needsUpdate = true;
-    this.orbs.instanceColor!.needsUpdate = true;
+    commitInstances(this.orbs, n);
   }
 }

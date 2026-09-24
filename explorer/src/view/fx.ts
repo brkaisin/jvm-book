@@ -108,7 +108,7 @@ const flowFrag = /* glsl */ `
   varying float vAlpha;
   void main() {
     float d = length(gl_PointCoord - 0.5);
-    float a = smoothstep(0.5, 0.0, d);
+    float a = 1.0 - smoothstep(0.0, 0.5, d);
     gl_FragColor = vec4(color * (1.0 + a), a * a * vAlpha * opacity);
   }`;
 
@@ -258,6 +258,11 @@ export class Registry {
     return obj;
   }
 
+  /** Names what a particle stream carries, halfway along it. */
+  flowLabel(curve: THREE.Curve<THREE.Vector3>, text: string, id: HotspotId, at = 0.5): Label {
+    return this.label(text, curve.getPointAt(at), { id, minor: true, cls: 'flow' });
+  }
+
   /** A floating HTML label; clicking it opens the hotspot. */
   label(
     text: string,
@@ -388,4 +393,17 @@ export function approach(current: THREE.Vector3, target: THREE.Vector3, rate: nu
 /** Common interface of every part of the world that animates. */
 export interface Part {
   update(dt: number, time: number): void;
+}
+
+/**
+ * Publishes a frame's worth of instance updates. Also drops the cached
+ * bounds: InstancedMesh computes them on the first raycast and never again,
+ * so moving instances would otherwise become unclickable.
+ */
+export function commitInstances(mesh: THREE.InstancedMesh, count: number): void {
+  mesh.count = count;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.boundingSphere = null;
+  mesh.boundingBox = null;
 }

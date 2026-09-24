@@ -12,12 +12,16 @@ import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { HOTSPOTS, type ActionId, type HotspotId } from './content';
 import { KLASSES } from './sim/jvm';
-import { byId, button } from './ui/dom';
+import { byId, button, h } from './ui/dom';
 import { Feed, Hud } from './ui/hud';
+import { Legend } from './ui/legend';
+import { MomentCard } from './ui/momentCard';
+import { Story } from './story';
 import { MapMenu } from './ui/map';
 import { Panel } from './ui/panel';
 import { Tour } from './ui/tour';
 import { CameraRig } from './view/cameraRig';
+import { sanitizePass } from './view/sanitizePass';
 import type { Anchor } from './view/fx';
 import { LOADER_COLOR } from './view/loadingView';
 import { World } from './world';
@@ -60,6 +64,12 @@ class App {
   private readonly map = new MapMenu(byId('map'), (id) => this.select(id));
   private readonly hud: Hud;
   private readonly feed = new Feed(byId('feed'), (id) => this.select(id));
+  private readonly legend = new Legend(byId('legend'), (id) => {
+    this.legend.close();
+    this.select(id);
+  });
+  private story!: Story;
+  private readonly moments = new MomentCard(byId('moment'), (id) => this.select(id));
 
   /** Horizontal shift of the image, so the focus stays visible beside the panel. */
   private viewShift = 0;
@@ -101,6 +111,7 @@ class App {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.composer.addPass(sanitizePass());
     this.bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.45, 0.78);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -109,12 +120,20 @@ class App {
     this.world.reg.onLabelClick = (id) => this.select(id);
     this.hud = new Hud(byId('hud'), () => this.select('jfr'));
     this.wireFeed();
+    this.story = new Story(
+      this.world.sim,
+      (moment) => this.moments.push(moment),
+      () => !EMBED && document.body.classList.contains('entered') && !this.tour.active,
+    );
     this.wireInput();
     this.wireControls();
 
     this.rig.place(FAR);
     this.start();
     this.renderer.setAnimationLoop(() => this.frame());
+    // `?debug` exposes internals to automated tests (see test-e2e/).
+    if (new URLSearchParams(location.search).has('debug'))
+      Object.assign(window, { __jvm: { THREE, renderer: this.renderer, scene: this.scene, camera: this.camera, world: this.world, app: this } });
   }
 
   // ------------------------------------------------------------- flow
@@ -144,6 +163,8 @@ class App {
     document.body.classList.add('entered');
     this.rig.autoOrbit = 0;
     if (flyHome) this.rig.flyTo(HOME, 3.2);
+    // After the tour has started (if any), so the welcome stays out of its way.
+    queueMicrotask(() => this.story.tell('welcome'));
   }
 
   private startTour() {
@@ -221,6 +242,14 @@ class App {
       this.select(id);
     });
 
+    // A lost GPU context (driver reset, too many tabs) would leave only the HTML
+    // labels on screen: say so, and let three.js rebuild when it comes back.
+    el.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      document.body.classList.add('context-lost');
+    });
+    el.addEventListener('webglcontextrestored', () => document.body.classList.remove('context-lost'));
+
     addEventListener('resize', () => {
       this.camera.aspect = innerWidth / innerHeight;
       this.camera.updateProjectionMatrix();
@@ -234,13 +263,19 @@ class App {
       const keys: Record<string, () => void> = {
         ArrowRight: () => this.tour.active && this.tour.next(),
         ArrowLeft: () => this.tour.active && this.tour.prev(),
-        Escape: () => (this.tour.active ? this.tour.stop() : this.closePanel()),
+        Escape: () => {
+          this.legend.close();
+          if (this.tour.active) this.tour.stop();
+          else this.closePanel();
+        },
         ' ': () => this.togglePause(),
         g: () => this.action('gcNow'),
         z: () => this.action('toggleGc'),
         l: () => this.toggleLabels(),
         h: () => this.rig.flyTo(HOME),
         m: () => this.map.toggle(),
+        k: () => this.legend.toggle(),
+        '?': () => this.legend.toggle(),
         t: () => (this.tour.active ? this.tour.stop() : this.startTour()),
       };
       const fn = keys[e.key];
@@ -255,6 +290,7 @@ class App {
     bar.replaceChildren(
       button('<b>☰</b> Map', () => this.map.toggle(), { title: 'All hotspots (M)', id: 'c-map' }),
       button('<b>✦</b> Tour', () => (this.tour.active ? this.tour.stop() : this.startTour()), { title: 'Guided tour (T)' }),
+      button('<b>?</b> Legend', () => this.legend.toggle(), { title: 'What the colours mean (K)' }),
       button('<b>⌂</b>', () => this.rig.flyTo(HOME), { title: 'Overview (H)' }),
       button('<b>❚❚</b>', () => this.togglePause(), { title: 'Pause the JVM (Space)', id: 'c-pause' }),
       button('<b>♻</b> GC', () => this.action('gcNow'), { title: 'Collect garbage now (G)' }),
@@ -300,7 +336,7 @@ class App {
     document.body.style.cursor = id ? 'pointer' : '';
     tip.hidden = !id;
     if (!id || !e) return;
-    tip.textContent = HOTSPOTS[id].title;
+    tip.replaceChildren(h('b', {}, HOTSPOTS[id].title), h('span', {}, HOTSPOTS[id].see), h('i', {}, 'click to learn more'));
     tip.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 14}px)`;
   }
 

@@ -163,12 +163,9 @@ export class Scenery implements Part {
     this.reg.add(wrap, 'compiler');
     this.reg.label('javac · scalac', LAYOUT.compiler.clone().add(new THREE.Vector3(0, 4.2, 0)), { id: 'compiler' });
 
-    this.flow(arc(LAYOUT.source.clone().add(new THREE.Vector3(6, 0, -2)), LAYOUT.compiler, 2), {
-      color: '#cfe8ff',
-      count: 28,
-      speed: 0.35,
-      size: 0.8,
-    });
+    const toCompiler = arc(LAYOUT.source.clone().add(new THREE.Vector3(6, 0, -2)), LAYOUT.compiler, 2);
+    this.flow(toCompiler, { color: '#cfe8ff', count: 28, speed: 0.35, size: 0.8 });
+    this.reg.flowLabel(toCompiler, 'source → compiler', 'compiler');
   }
 
   private buildClassFile(): THREE.Mesh {
@@ -188,6 +185,7 @@ export class Scenery implements Part {
     this.reg.add(cube, 'classfile');
     this.reg.label('.class', LAYOUT.classfile.clone().add(new THREE.Vector3(0, 3.2, 0)), { id: 'classfile' });
     this.flow(arc(LAYOUT.compiler, LAYOUT.classfile, 1), { color: C.gold, count: 16, speed: 0.4, size: 0.9 });
+    this.reg.flowLabel(new THREE.LineCurve3(LAYOUT.classfile, LAYOUT.loaders), 'class files → loaders', 'classfile', 0.45);
     return cube;
   }
 
@@ -247,8 +245,10 @@ export class Scenery implements Part {
     this.reg.add(crate, 'aotcache');
     this.reg.label('AOT cache', LAYOUT.aot.clone().add(new THREE.Vector3(0, 3.8, 0)), { id: 'aotcache', minor: true });
     const opts = { color: '#ffd166', count: 18, speed: 0.08, size: 0.7, opacity: 0.7 };
-    this.flow(arc(LAYOUT.aot, LAYOUT.metaspace, 8), opts);
+    const toMeta = arc(LAYOUT.aot, LAYOUT.metaspace, 8);
+    this.flow(toMeta, opts);
     this.flow(arc(LAYOUT.aot, LAYOUT.codecache.clone().add(new THREE.Vector3(-6, 2, 0)), 22), opts);
+    this.reg.flowLabel(toMeta, 'cached classes & profiles', 'aotcache');
   }
 
   private buildNative(): THREE.Points {
@@ -300,13 +300,9 @@ export class Scenery implements Part {
     });
     this.reg.add(world, 'native', { anchor: false });
     this.flow(arc(LAYOUT.portal, LAYOUT.nativeWorld, 2), { color: C.native, count: 30, speed: 0.3, jitter: 3 });
-    this.flow(arc(LAYOUT.interpreter.clone().add(new THREE.Vector3(3, 0, 3)), LAYOUT.portal, 6), {
-      color: '#ffc2d8',
-      count: 30,
-      speed: 0.15,
-      size: 0.7,
-      opacity: 0.6,
-    });
+    const toPortal = arc(LAYOUT.interpreter.clone().add(new THREE.Vector3(3, 0, 3)), LAYOUT.portal, 6);
+    this.flow(toPortal, { color: '#ffc2d8', count: 30, speed: 0.15, size: 0.7, opacity: 0.6 });
+    this.reg.flowLabel(toPortal, 'native calls', 'native', 0.6);
     return vortex;
   }
 
@@ -410,7 +406,9 @@ export class Scenery implements Part {
     ram.position.copy(LAYOUT.ram);
     this.reg.add(ram, 'ram', { view: new THREE.Vector3(0.1, 0.25, 1) });
     this.reg.label('Main memory', LAYOUT.ram.clone().add(new THREE.Vector3(31, 1.5, 0)), { id: 'ram' });
-    this.flow(arc(LAYOUT.ram.clone().setY(y + 0.8), bus, 3), { color: '#6fd8ff', count: 24, speed: 0.2, jitter: 1.5 });
+    const toCpu = arc(LAYOUT.ram.clone().setY(y + 0.8), bus, 3);
+    this.flow(toCpu, { color: '#6fd8ff', count: 24, speed: 0.2, jitter: 1.5 });
+    this.reg.flowLabel(toCpu, 'memory ↔ caches', 'cpu');
   }
 
   private buildJfr(): THREE.Sprite {
@@ -452,7 +450,7 @@ const FLOOR_FRAG = /* glsl */ `
   varying vec3 vW;
   float grid(vec2 p, float s) {
     vec2 q = p / s;
-    vec2 g = abs(fract(q - 0.5) - 0.5) / fwidth(q);
+    vec2 g = abs(fract(q - 0.5) - 0.5) / max(fwidth(q), vec2(1e-4));
     return 1.0 - min(min(g.x, g.y), 1.0);
   }
   void main() {
@@ -463,7 +461,7 @@ const FLOOR_FRAG = /* glsl */ `
     float inside = 1.0 - smoothstep(0.96, 1.0, e);
     float rim = smoothstep(0.9, 1.0, e) * (1.0 - smoothstep(1.0, 1.04, e));
     float fade = 1.0 - smoothstep(50.0, 165.0, r);
-    float wave = pow(0.5 + 0.5 * sin(r * 0.12 - time * 1.2), 8.0) * inside;
+    float wave = pow(clamp(0.5 + 0.5 * sin(r * 0.12 - time * 1.2), 0.0, 1.0), 8.0) * inside;
     float a = (major * 0.45 + minor * 0.12) * (0.35 + 0.65 * inside) + rim * 0.35 + wave * 0.08 + inside * 0.05;
     gl_FragColor = vec4(color * (0.6 + rim * 0.5 + wave), a * fade);
   }`;
@@ -491,12 +489,12 @@ const DOME_FRAG = /* glsl */ `
     return smoothstep(0.5 - w, 0.5, d);
   }
   void main() {
-    float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);
+    float f = pow(clamp(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0, 1.0), 2.2);
     float lon = atan(vP.z, vP.x) * 24.0 / 6.2831;
     float lat = asin(clamp(vP.y, -1.0, 1.0)) * 10.0 / 1.5708;
     float g = max(line(lon, 0.03), line(lat, 0.03));
-    float scan = smoothstep(0.04, 0.0, abs(vP.y - fract(time * 0.05)));
-    float base = smoothstep(0.05, 0.0, vP.y);
+    float scan = 1.0 - smoothstep(0.0, 0.04, abs(vP.y - fract(time * 0.05)));
+    float base = 1.0 - smoothstep(0.0, 0.05, vP.y);
     float a = f * 0.32 + g * 0.08 + scan * 0.2 + base * 0.12;
     gl_FragColor = vec4(color * (0.6 + scan + base * 0.4), a);
   }`;

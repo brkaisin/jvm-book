@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Enter the JVM · 3D explorer</title>
+    <meta name="description" content="An interactive 3D journey inside a running Java Virtual Machine, companion to The JVM — A Gentle Deep Dive." />
+    <meta name="theme-color" content="#03050b" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <header id="top">
+      <a class="back" href="../index.html" target="_top">← The book</a>
+      <div class="brand">Enter the <b>JVM</b></div>
+    </header>
+
+    <div id="banner"></div>
+    <aside id="hud" title="Java Flight Recorder (click to learn more)"></aside>
+    <aside id="map"></aside>
+    <aside id="panel" aria-live="polite"></aside>
+    <div id="feed"></div>
+    <div id="tour"></div>
+    <nav id="controls"></nav>
+    <div id="tip" hidden></div>
+
+    <section id="intro">
+      <div class="intro-card">
+        <div class="kicker">The JVM — A Gentle Deep Dive · interactive companion</div>
+        <h1>Enter the <span>JVM</span></h1>
+        <p>
+          Step inside a running Java Virtual Machine. Classes load, threads call methods, the JIT compiles hot code and
+          the garbage collector sweeps the heap, all live, right in front of you. Click anything to learn what it is.
+        </p>
+        <div class="cta">
+          <button id="enter-tour" class="primary" type="button">✦ Take the guided tour</button>
+          <button id="enter" type="button">Explore freely</button>
+        </div>
+        <div class="hints">
+          <span><kbd>drag</kbd> orbit</span><span><kbd>scroll</kbd> zoom</span><span><kbd>right-drag</kbd> pan</span
+          ><span><kbd>click</kbd> learn</span>
+        </div>
+      </div>
+    </section>
+
+    <a id="embed-cta" href="./index.html" target="_top">Enter the JVM in 3D →</a>
+
+    <section id="no-webgl">
+      <div class="intro-card">
+        <h1>Enter the <span>JVM</span></h1>
+        <p>This 3D explorer needs WebGL 2, which your browser does not seem to support.</p>
+        <p><a href="../index.html" target="_top">← Back to the book</a></p>
+      </div>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

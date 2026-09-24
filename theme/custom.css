@@ -569,3 +569,46 @@ html {
         display: none;
     }
 }
+
+/* ---------------------------------------------------------------
+   3D explorer embed (explore-in-3d.md)
+   --------------------------------------------------------------- */
+.explorer-embed {
+    position: relative;
+    margin: 1.8rem 0 1rem;
+    aspect-ratio: 16 / 10;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #03050b;
+    border: 1px solid var(--rule);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+}
+
+.explorer-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.explorer-cta {
+    text-align: center;
+    margin: 0 0 2rem;
+}
+
+.explorer-cta a {
+    display: inline-block;
+    padding: 0.7rem 1.4rem;
+    border-radius: 12px;
+    background: linear-gradient(100deg, #ffd166, #ff9f43);
+    color: #1b1204 !important;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    text-decoration: none !important;
+    box-shadow: 0 10px 30px rgba(255, 159, 67, 0.3);
+}
+
+.explorer-cta a:hover {
+    box-shadow: 0 14px 40px rgba(255, 159, 67, 0.5);
+}

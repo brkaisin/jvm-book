@@ -17,12 +17,31 @@ Up to date with **JDK 27** (September 2026), the current LTS **JDK 25**, and wha
 7. **The JVM Ecosystem & Beyond** — The module system, JNI and Panama, the JVM language ecosystem, and what's next
 8. **Appendices** — JVM flags cheat sheet, bytecode reference, and glossary
 
+## Explore the JVM in 3D
+
+The book comes with an interactive 3D explorer: a small, living JVM you can fly through, where every part links back to the chapter that explains it. Try it at [brkaisin.github.io/jvm-book/explorer](https://brkaisin.github.io/jvm-book/explorer/).
+
+It lives in [`explorer/`](explorer/), a TypeScript + [Three.js](https://threejs.org/) app built with [Vite](https://vite.dev/):
+
+- `src/sim/`: a pure, deterministic model of the JVM (G1/ZGC heap, tiered JIT, platform and virtual threads, class loading), unit-tested with Vitest
+- `src/view/`: the Three.js scene, which only renders the simulation's state
+- `src/ui/`: the panels, tour, map and flight-recorder HUD
+- `src/content.ts`: every explanation and every link into the book (a test checks that each link points to a real chapter and heading)
+
 ## Building locally
 
-Requires [mdBook](https://rust-lang.github.io/mdBook/):
+Requires [mdBook](https://rust-lang.github.io/mdBook/) and Node.js 22+:
 
 ```bash
 brew install mdbook   # or cargo install mdbook
+
+cd explorer
+npm install
+npm run check         # typecheck + tests
+npm run build         # builds the explorer into docs/explorer/
+npm run dev           # or: hot-reloading dev server for the explorer alone
+cd ..
+
 mdbook serve          # live preview at http://localhost:3000
 mdbook build          # static output in ./book/
 ```

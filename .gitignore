@@ -1,2 +1,6 @@
 # mdBook build output
 /book/
+
+# Explorer: npm deps, and its build output (built by `npm run build` / CI)
+/explorer/node_modules/
+/docs/explorer/

@@ -7,6 +7,9 @@ This book explains the Java Virtual Machine from the ground up — in plain lang
 > [!NOTE]
 > Up to date with **JDK 27** (September 2026), with **JDK 25** as the current LTS, and a look at what's coming in JDK 28 (Valhalla's value objects, AOT code compilation). Scala examples target Scala 3.
 
+> [!TIP]
+> **New: [explore the JVM in 3D](explore-in-3d.md).** Fly through a living JVM, watch the JIT and the garbage collector at work, and click anything to jump to the chapter that explains it.
+
 ## Table of Contents
 
 ### [Part I — The Big Picture](part-1-the-big-picture/index.md)

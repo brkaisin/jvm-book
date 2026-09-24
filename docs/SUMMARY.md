@@ -1,6 +1,7 @@
 # Summary
 
 [Introduction](README.md)
+[Explore the JVM in 3D](explore-in-3d.md)
 
 - [Part I — The Big Picture](part-1-the-big-picture/index.md)
   - [1. Why the JVM Exists](part-1-the-big-picture/01-why-the-jvm-exists.md)

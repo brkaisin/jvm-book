@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 20 760 250" role="img" aria-labelledby="f81-title f81-desc">
+  <title id="f81-title">A java.lang.Long in the legacy and compact header layouts</title>
+  <desc id="f81-desc">Legacy layout: 8-byte mark word, 4-byte class pointer, 4 bytes of padding, 8-byte long value, 24 bytes in total. Compact layout: 8-byte header containing the class id, then the 8-byte value, 16 bytes in total. Eight bytes are saved.</desc>
+  <defs>
+    <pattern id="f81-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/>
+    </pattern>
+  </defs>
+  <!-- byte ruler -->
+  <text x="138" y="40" class="t-small t-muted t-end">bytes</text>
+    <text x="150" y="40" class="t-mono t-muted t-mid">0</text>
+    <text x="246" y="40" class="t-mono t-muted t-mid">4</text>
+    <text x="342" y="40" class="t-mono t-muted t-mid">8</text>
+    <text x="438" y="40" class="t-mono t-muted t-mid">12</text>
+    <text x="534" y="40" class="t-mono t-muted t-mid">16</text>
+    <text x="630" y="40" class="t-mono t-muted t-mid">20</text>
+    <text x="726" y="40" class="t-mono t-muted t-mid">24</text>
+  <path d="M150 50 H726 M150 46 V54 M246 47 V53 M342 46 V54 M438 47 V53 M534 46 V54 M630 47 V53 M726 46 V54" class="line-muted"/>
+  <!-- 8-byte alignment guides -->
+  <path d="M342 58 V250 M534 58 V250 M726 58 V250" class="rule dashed"/>
+  <!-- legacy row -->
+  <text x="20" y="96" class="t-title">Legacy layout</text>
+  <text x="20" y="114" class="t-small t-muted">24 bytes in total</text>
+  <rect x="150" y="74" width="192" height="48" class="box"/>
+  <text x="246" y="95" class="t-mid">mark word</text>
+  <text x="246" y="112" class="t-small t-muted t-mid">8 bytes</text>
+  <rect x="342" y="74" width="96" height="48" class="box"/>
+  <text x="390" y="95" class="t-mid">class ptr</text>
+  <text x="390" y="112" class="t-small t-muted t-mid">4 bytes</text>
+  <rect x="438" y="74" width="96" height="48" class="box-ghost" style="fill: url(#f81-hatch)"/>
+  <text x="486" y="103" class="t-small t-muted t-mid">padding</text>
+  <rect x="534" y="74" width="192" height="48" class="box-accent"/>
+  <text x="630" y="95" class="t-mid">long value</text>
+  <text x="630" y="112" class="t-small t-muted t-mid">8 bytes</text>
+  <path d="M151 132 V138 H437 V132" class="line-muted"/>
+  <text x="294" y="154" class="t-small t-muted t-mid">header: 12 bytes</text>
+  <!-- compact row -->
+  <text x="20" y="196" class="t-title">Compact layout</text>
+  <text x="20" y="214" class="t-small t-muted">16 bytes in total</text>
+  <text x="20" y="231" class="t-small t-accent">default since JDK 27</text>
+  <rect x="150" y="174" width="192" height="48" class="box"/>
+  <text x="246" y="195" class="t-mid">header</text>
+  <text x="246" y="212" class="t-small t-muted t-mid">class id is inside</text>
+  <rect x="342" y="174" width="192" height="48" class="box-accent"/>
+  <text x="438" y="195" class="t-mid">long value</text>
+  <text x="438" y="212" class="t-small t-muted t-mid">8 bytes</text>
+  <rect x="534" y="174" width="192" height="48" class="box-ghost"/>
+  <text x="630" y="203" class="t-warm t-mid">8 bytes saved</text>
+  <path d="M151 232 V238 H341 V232" class="line-muted"/>
+  <text x="246" y="254" class="t-small t-muted t-mid">header: 8 bytes</text>
+</svg>

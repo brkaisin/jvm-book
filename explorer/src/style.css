@@ -1518,6 +1518,20 @@ body:has(#panel.open) #narrator {
   width: min(640px, calc(100vw - 480px));
 }
 
+/* The narrator's bar takes the bottom: lift the card and the feed above it. */
+@media (min-width: 801px) {
+  body:has(#narrator.open) :is(#moment, #feed) {
+    bottom: 160px;
+  }
+}
+
+#moment,
+#feed {
+  transition:
+    transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+    bottom 0.35s ease;
+}
+
 body.lab-open #narrator {
   left: calc(592px + (100vw - 592px) / 2);
   width: min(560px, calc(100vw - 640px));
@@ -1566,15 +1580,76 @@ body.lab-open #narrator {
   }
 }
 
+.talk {
+  flex: 1;
+  min-width: 0;
+}
+
+.topic {
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--warm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#narrator.switched {
+  animation: switched 0.6s ease-out;
+}
+
+#narrator.switched .talk {
+  animation: slide-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes switched {
+  0% {
+    border-color: var(--warm);
+    box-shadow: 0 0 30px rgba(255, 209, 102, 0.45);
+  }
+}
+
+.narrator-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.narrator-actions button {
+  pointer-events: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.narrator-actions button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.waiting {
+  margin-right: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .caption {
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
   color: var(--muted);
-  max-height: 4.5em;
+  max-height: 3em;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 

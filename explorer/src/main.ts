@@ -64,7 +64,7 @@ class App {
     byId('tour'),
     (step) => {
       this.select(step.id, true);
-      this.narrator.say(`${step.say} ${HOTSPOTS[step.id].see}`);
+      this.narrator.say(`${step.say} ${HOTSPOTS[step.id].see}`, `Tour · ${HOTSPOTS[step.id].title}`);
       if (step.action) this.action(step.action);
     },
     () => document.body.classList.remove('touring'),
@@ -79,13 +79,14 @@ class App {
   private story!: Story;
   private lab!: LabPanel;
   private readonly sound = new Sound(loadPref('sound', true));
-  private readonly narrator = new Narrator(new NarratorView(byId('narrator')), loadPref('narrator', true));
+  private readonly narratorView = new NarratorView(byId('narrator'));
+  private readonly narrator = new Narrator(this.narratorView, loadPref('narrator', true));
   private readonly moments = new MomentCard(
     byId('moment'),
     (id) => this.select(id),
     (m) => {
       this.sound.play('moment');
-      this.narrator.say(`${m.title}. ${m.text}`);
+      this.narrator.say(m.text, `What just happened? ${m.title}`, 'background');
     },
   );
 
@@ -144,8 +145,9 @@ class App {
       (moment) => this.moments.push(moment),
       () => !EMBED && document.body.classList.contains('entered') && !this.tour.active,
     );
+    this.narratorView.bind(this.narrator);
     this.lab = new LabPanel(byId('lab'), this.world.lab, {
-      started: (s) => this.narrator.say(s ? `${s.title}. Watch ${s.watch}` : 'Running your code. Watch the gold tower and the heap.'),
+      started: (s) => this.narrator.say(s ? `Watch ${s.watch}.` : 'Running your code. Watch the gold tower and the heap.', `Code Lab · ${s?.title ?? 'your code'}`),
       close: () => this.toggleLab(false),
     });
     this.wireLab();
@@ -214,7 +216,7 @@ class App {
 
   select(id: HotspotId, fromTour = false) {
     if (!fromTour && this.tour.active) this.tour.interrupt();
-    if (!fromTour && id !== this.panel.current) this.narrator.say(`${HOTSPOTS[id].title}. ${HOTSPOTS[id].summary}`);
+    if (!fromTour && id !== this.panel.current) this.narrator.say(HOTSPOTS[id].summary, HOTSPOTS[id].title);
     this.world.onFocus(id);
     const anchor = this.world.reg.anchors.get(id)?.();
     if (anchor) this.rig.flyTo(anchor);
@@ -245,6 +247,8 @@ class App {
         tier === 3
           ? `Your method ${method} is warm: C1 just compiled it. Its frames turn green, and it runs about four times faster.`
           : `${method} is hot: C2 recompiled it with full optimisations. Orange frames, and it flies.`,
+        `Code Lab · the JIT`,
+        'background',
       );
     });
     lab.on('crashed', (e) => {
@@ -256,13 +260,17 @@ class App {
         NullPointerException: 'The code used a reference that points to nothing.',
         ArrayIndexOutOfBoundsException: 'The code read past the end of an array: the JVM checks every array access.',
       };
-      this.narrator.say(`${e.name}! ${why[e.name] ?? e.message}`);
+      this.narrator.say(`${e.name}! ${why[e.name] ?? e.message}`, 'Code Lab · your program crashed', 'background');
     });
     lab.on('state', (s) => {
       if (s !== 'finished') return;
       this.sound.play('gcDone');
       const vm = lab.vm;
-      this.narrator.say(`Your program finished after ${vm ? vm.executed.toLocaleString('en') : 'some'} bytecode instructions. Its objects are now garbage: the next collection will reclaim them.`);
+      this.narrator.say(
+        `Your program finished after ${vm ? vm.executed.toLocaleString('en') : 'some'} bytecode instructions. Its objects are now garbage: the next collection will reclaim them.`,
+        'Code Lab · finished',
+        'background',
+      );
       this.feed.push(`Your program finished: ${vm?.executed.toLocaleString('en')} instructions`, '#ffd166', 'lab');
     });
   }

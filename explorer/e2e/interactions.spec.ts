@@ -65,3 +65,13 @@ test('the narrator captions what it explains', async ({ page }) => {
   await expect(page.locator('#narrator')).toHaveClass(/open/);
   await expect(page.locator('#narrator .caption')).toContainText('C two');
 });
+
+test('the narrator shows its topic and can be stopped', async ({ page }) => {
+  await enter(page);
+  await page.evaluate(() => (location.hash = 'heap'));
+  await expect(page.locator('#narrator .topic')).toHaveText('The heap');
+  await page.evaluate(() => (location.hash = 'gc'));
+  await expect(page.locator('#narrator .topic')).toHaveText('The garbage collector');
+  await page.locator('#narrator button[aria-label=Stop]').click();
+  await expect(page.locator('#narrator')).not.toHaveClass(/open/);
+});

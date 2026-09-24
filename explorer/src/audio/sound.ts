@@ -1,7 +1,9 @@
-// Every sound is synthesised with Web Audio: no audio files. A low hum is the
-// JVM running (it drops and darkens while the world is stopped at a
-// safepoint); short cues mark events: chimes for compilations, a buzz for
-// deoptimisation, a whoosh for collections...
+// Every sound is synthesised with Web Audio: no audio files. A soft ambient
+// pad plays in the background (muffled while the world is stopped at a
+// safepoint, see ambient.ts); short cues mark events: chimes for
+// compilations, a buzz for deoptimisation, a whoosh for collections...
+
+import { Ambient } from './ambient';
 
 export type Cue =
   | 'none'
@@ -33,8 +35,7 @@ type Wave = OscillatorType;
 export class Sound {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
-  private droneFilter!: BiquadFilterNode;
-  private droneOscs: OscillatorNode[] = [];
+  private ambient: Ambient | null = null;
   private readonly last = new Map<Cue, number>();
   private frozen = false;
   private on: boolean;
@@ -55,7 +56,8 @@ export class Sound {
     this.master.gain.value = this.on ? 0.6 : 0;
     const comp = this.ctx.createDynamicsCompressor();
     this.master.connect(comp).connect(this.ctx.destination);
-    this.startDrone();
+    this.ambient = new Ambient(this.ctx, this.master);
+    this.ambient.start();
   }
 
   setEnabled(on: boolean): void {
@@ -64,13 +66,11 @@ export class Sound {
     this.master.gain.setTargetAtTime(on ? 0.6 : 0, this.ctx.currentTime, 0.15);
   }
 
-  /** The hum drops and darkens while threads are stopped at a safepoint. */
+  /** The music goes muffled while threads are stopped at a safepoint. */
   setFrozen(frozen: boolean): void {
     if (!this.ctx || frozen === this.frozen) return;
     this.frozen = frozen;
-    const t = this.ctx.currentTime;
-    this.droneFilter.frequency.setTargetAtTime(frozen ? 160 : 520, t, 0.08);
-    for (const o of this.droneOscs) o.detune.setTargetAtTime(frozen ? -300 : 0, t, 0.1);
+    this.ambient?.setHushed(frozen);
   }
 
   play(cue: Cue): void {
@@ -103,12 +103,12 @@ export class Sound {
         this.bell(880, 0.6, 0.08, 0.25);
         break;
       case 'native':
-        this.tone(110, 0.8, 'sawtooth', 0.07, 0, 55, 900);
+        this.tone(220, 0.8, 'triangle', 0.06, 0, 110, 900);
         this.bell(1318.5, 0.5, 0.05, 0.4);
         break;
       case 'jfr':
-        this.noise(0.07, 3000, 0.25, 'highpass');
-        this.tone(2400, 0.03, 'square', 0.03, 0.02);
+        this.noise(0.07, 3000, 0.12, 'highpass');
+        this.tone(2400, 0.03, 'sine', 0.03, 0.02);
         break;
       case 'c1':
         this.bell(659.25, 0.5, 0.09);
@@ -118,14 +118,14 @@ export class Sound {
         [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.bell(f, 0.9, 0.07, i * 0.07));
         break;
       case 'deopt':
-        this.tone(440, 0.55, 'sawtooth', 0.09, 0, 90, 1400);
+        this.tone(440, 0.55, 'triangle', 0.08, 0, 147, 1200);
         break;
       case 'gcFreeze':
-        this.noise(0.5, 1200, 0.22, 'bandpass', 5000);
-        this.tone(70, 0.4, 'sine', 0.25, 0, 40);
+        this.noise(0.6, 900, 0.1, 'bandpass', 3200);
+        this.bell(261.63, 0.9, 0.05);
         break;
       case 'gcConcurrent':
-        this.noise(0.9, 600, 0.12, 'bandpass', 2400);
+        this.noise(0.9, 600, 0.07, 'bandpass', 2000);
         break;
       case 'gcDone':
         this.bell(392, 0.7, 0.06);
@@ -141,36 +141,6 @@ export class Sound {
   }
 
   // ------------------------------------------------------------- building blocks
-
-  private startDrone(): void {
-    const ctx = this.ctx!;
-    this.droneFilter = ctx.createBiquadFilter();
-    this.droneFilter.type = 'lowpass';
-    this.droneFilter.frequency.value = 520;
-    this.droneFilter.Q.value = 4;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.045;
-    this.droneFilter.connect(gain).connect(this.master);
-    // A slow wobble on the filter: the machine breathing.
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.09;
-    lfoGain.gain.value = 180;
-    lfo.connect(lfoGain).connect(this.droneFilter.frequency);
-    lfo.start();
-    for (const [f, type] of [
-      [55, 'sawtooth'],
-      [82.41, 'triangle'],
-      [110.3, 'sine'],
-    ] as [number, Wave][]) {
-      const o = ctx.createOscillator();
-      o.type = type;
-      o.frequency.value = f;
-      o.connect(this.droneFilter);
-      o.start();
-      this.droneOscs.push(o);
-    }
-  }
 
   /** A note with a quick attack, optionally gliding in pitch and through a lowpass. */
   private tone(freq: number, dur: number, type: Wave, gain: number, delay = 0, glideTo?: number, lowpass?: number): void {

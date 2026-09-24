@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 20 760 376" role="img" aria-labelledby="f6b-title f6b-desc">
+  <title id="f6b-title">A thread stack and the inside of one frame</title>
+  <desc id="f6b-desc">Thread 1's stack holds three frames, newest on top: calculate() is running on top, called by processData(), which was called by main() at the bottom; above them is free stack space, and the stack grows upward as calls nest. The calculate() frame is expanded. Its local variable array has slots 0 to 3: slot 0 holds this (for instance methods), then the arguments and a local; its size (max_locals) is fixed in the class file. Its operand stack holds two pushed values below free cells, with a depth limit (max_stack) also fixed in the class file. Its frame data holds the return address, a reference to the constant pool, and what is needed to unwind the frame when an exception is thrown.</desc>
+  <defs>
+    <marker id="f6b-arrow-muted" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-muted"/>
+    </marker>
+  </defs>
+  <!-- the thread stack -->
+  <text x="248" y="40" class="t-title t-mid">Thread 1's stack</text>
+  <rect x="160" y="56" width="176" height="64" class="box-ghost"/>
+  <text x="248" y="92" class="t-small t-muted t-mid">free stack space</text>
+  <rect x="160" y="120" width="176" height="40" class="box-accent"/>
+  <text x="248" y="145" class="t-mono t-mid">calculate()</text>
+  <rect x="160" y="160" width="176" height="40" class="box"/>
+  <text x="248" y="185" class="t-mono t-mid">processData()</text>
+  <rect x="160" y="200" width="176" height="40" class="box"/>
+  <text x="248" y="225" class="t-mono t-mid">main()</text>
+  <text x="144" y="138" class="t-small t-end">top: running</text>
+  <text x="144" y="153" class="t-small t-muted t-end">newest frame</text>
+  <text x="144" y="185" class="t-small t-muted t-end">its caller</text>
+  <text x="144" y="218" class="t-small t-muted t-end">bottom</text>
+  <text x="144" y="233" class="t-small t-muted t-end">oldest frame</text>
+  <path d="M248 280 V252" class="line-muted" marker-end="url(#f6b-arrow-muted)"/>
+  <text x="248" y="298" class="t-small t-muted t-mid">grows as calls nest</text>
+  <path d="M336 120 L400 56 M336 160 L400 376" class="line-accent dashed"/>
+  <!-- one frame, expanded -->
+  <rect x="400" y="56" width="344" height="320" class="box-accent"/>
+  <text x="416" y="82" class="t-title">Frame: calculate()</text>
+  <text x="416" y="112">Local variable array</text>
+  <text x="728" y="112" class="t-small t-muted t-end">size: max_locals</text>
+  <rect x="416" y="120" width="78" height="32" class="box"/>
+  <text x="455" y="141" class="t-mono t-mid">this</text>
+  <text x="455" y="168" class="t-mono t-muted t-mid">0</text>
+  <rect x="494" y="120" width="78" height="32" class="box"/>
+  <text x="533" y="141" class="t-mid">arg 1</text>
+  <text x="533" y="168" class="t-mono t-muted t-mid">1</text>
+  <rect x="572" y="120" width="78" height="32" class="box"/>
+  <text x="611" y="141" class="t-mid">arg 2</text>
+  <text x="611" y="168" class="t-mono t-muted t-mid">2</text>
+  <rect x="650" y="120" width="78" height="32" class="box"/>
+  <text x="689" y="141" class="t-mid">local</text>
+  <text x="689" y="168" class="t-mono t-muted t-mid">3</text>
+  <text x="416" y="186" class="t-small t-muted">slot 0 = this (instance methods only)</text>
+  <text x="416" y="216">Operand stack</text>
+  <text x="728" y="216" class="t-small t-muted t-end">depth: max_stack</text>
+  <rect x="416" y="224" width="78" height="32" class="box"/>
+  <text x="455" y="245" class="t-mid">value</text>
+  <rect x="494" y="224" width="78" height="32" class="box"/>
+  <text x="533" y="245" class="t-mid">value</text>
+  <rect x="572" y="224" width="78" height="32" class="box-ghost"/>
+  <rect x="650" y="224" width="78" height="32" class="box-ghost"/>
+  <text x="572" y="278" class="t-small t-muted t-mid">top: push and pop here</text>
+  <path d="M572 256 V264" class="line-muted"/>
+  <text x="416" y="304">Frame data</text>
+  <rect x="416" y="312" width="312" height="48" class="box"/>
+  <text x="428" y="331" class="t-small">return address, constant pool ref,</text>
+  <text x="428" y="348" class="t-small">exception unwinding info</text>
+</svg>

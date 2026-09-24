@@ -49,7 +49,7 @@ Virtual threads are **multiplexed** (M:N) onto a small pool of platform threads 
 
 <figure class="fig">
 {{#include ../figures/18-carriers.svg}}
-<figcaption><b>Figure 18.1</b> — Many virtual threads share a few carrier threads: running ones are mounted on a carrier, ready ones wait in the scheduler's queue, and blocked ones are parked as stack chunks on the heap, holding no carrier at all.</figcaption>
+<figcaption><b>Figure 18.1.</b> Many virtual threads share a few carrier threads: running ones are mounted on a carrier, ready ones wait in the scheduler's queue, and blocked ones are parked as stack chunks on the heap, holding no carrier at all.</figcaption>
 </figure>
 
 When a virtual thread blocks, for example on a socket read:

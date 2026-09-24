@@ -16,34 +16,12 @@ Total per object    16 bytes (2x data)     24 bytes (3x data)
 + the reference      4 bytes                4 bytes
 ```
 
-Compact object headers (on by default since JDK 27) halved the tax, but it's still there. And when you store these in an array, the real cost shows up:
+Compact object headers (on by default since JDK 27) halved the tax, but it's still there. And when you store these in an array, the real cost shows up (Figure 14.1):
 
-```text
-Point[] today (identity objects):
-
-┌──────────┐      ┌──────────┐
-│ ref[0] ──┼─────▶│ header   │
-│ ref[1] ──┼──┐   │ x = 1    │
-│ ref[2] ──┼┐ │   │ y = 2    │
-└──────────┘│ │   └──────────┘
-            │ │      ┌──────────┐
-            │ └─────▶│ header   │
-            │        │ x = 3    │
-            │        │ y = 4    │
-            │        └──────────┘
-            │           ┌──────────┐
-            └──────────▶│ header   │
-                        │ x = 5    │
-                        │ y = 6    │
-                        └──────────┘
-
-What we'd like (like an int[]):
-
-┌──────────┬──────────┬──────────┐
-│ x=1 y=2  │ x=3 y=4  │ x=5 y=6  │
-└──────────┴──────────┴──────────┘
-(contiguous, no headers, no indirection)
-```
+<figure class="fig">
+{{#include ../figures/14-flattened-points.svg}}
+<figcaption><b>Figure 14.1.</b> Today a <code>Point[]</code> holds references to separate objects scattered on the heap (60 bytes for three points, array header not counted); what we'd like is the fields stored inline and contiguously (24 bytes).</figcaption>
+</figure>
 
 The pointer-based layout has three costs:
 
@@ -297,20 +275,12 @@ Point q = new Point(p.x() + 3, p.y() + 4);
 
 Escape analysis could already do this for identity objects, but only when it could prove that the object never escapes; for value objects it works reliably, even across (non-inlined) method calls.
 
-**Reference flattening** — a field or array element holds the value object's fields directly, plus a **null flag** (the reference can still be `null`), instead of a pointer. JEP 401 uses `LocalDate` as its example: year, month, and day are an `int` and two `byte`s, so a flag plus the data fits in a 64-bit word:
+**Reference flattening** — a field or array element holds the value object's fields directly, plus a **null flag** (the reference can still be `null`), instead of a pointer. JEP 401 uses `LocalDate` as its example: year, month, and day are an `int` and two `byte`s, so a flag plus the data fits in a 64-bit word (Figure 14.2; compare with the pointer layout of Figure 14.1):
 
-```text
-LocalDate[] as pointers (today)       LocalDate[] flattened (JEP 401)
-
-┌──────────┐                          ┌──────────────────┐
-│ ref ─────┼──▶ [header|1996|01|23]   │ 1 | 1996 | 01|23 │
-│ ref ─────┼──▶ [header|2026|01|23]   │ 1 | 2026 | 01|23 │
-│ null     │                          │ 0 | 0000 | 00|00 │
-│ ref ─────┼──▶ [header|1996|01|23]   │ 1 | 1996 | 01|23 │
-└──────────┘                          └──────────────────┘
-                                       null flag, then the fields,
-                                       8 bytes per element
-```
+<figure class="fig">
+{{#include ../figures/14-flattened-localdate.svg}}
+<figcaption><b>Figure 14.2.</b> A flattened <code>LocalDate[]</code>: each element is one 64-bit word holding a null flag and the fields, and a <code>null</code> element is just a word whose flag is 0.</figcaption>
+</figure>
 
 ### The caveats: when is a reference flattened?
 

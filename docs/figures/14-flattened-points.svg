@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 24 760 344" role="img" aria-labelledby="f14a-title f14a-desc">
+  <title id="f14a-title">A Point array today versus a flattened Point array</title>
+  <desc id="f14a-desc">Top: a Point[] of identity objects is an array of three 4-byte references. Each reference points to a separately allocated Point object somewhere in the Java heap, made of an 8-byte header and the two int fields x and y, 16 bytes per object. That is 20 bytes per point and 60 bytes in total for three points. Bottom: what we would like, as in an int[]: the x and y values of the three points stored inline and contiguously, with no headers and no pointers, 8 bytes per point and 24 bytes in total. The array header is not counted in either case.</desc>
+  <defs>
+    <marker id="f14a-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-ink"/>
+    </marker>
+  </defs>
+  <!-- today: row labels -->
+  <text x="20" y="128" class="t-title">Point[] today</text>
+  <text x="20" y="146" class="t-small t-muted">identity objects</text>
+  <text x="20" y="170" class="t-small t-muted">20 bytes per point</text>
+  <text x="20" y="187" class="t-small t-muted">60 bytes in total</text>
+  <!-- array of references -->
+  <rect x="176" y="96" width="64" height="32" class="box"/>
+  <rect x="176" y="128" width="64" height="32" class="box"/>
+  <rect x="176" y="160" width="64" height="32" class="box"/>
+  <text x="208" y="212" class="t-small t-muted t-mid">references</text>
+  <text x="208" y="228" class="t-small t-muted t-mid">4 bytes each</text>
+  <!-- heap -->
+  <text x="344" y="40" class="t-small t-muted">Java heap: each Point is a separate object</text>
+  <rect x="344" y="48" width="392" height="192" class="rule"/>
+  <!-- pointers fanning out -->
+  <path d="M208 112 L560 84" class="line" marker-end="url(#f14a-arrow)"/>
+  <path d="M208 144 H384" class="line" marker-end="url(#f14a-arrow)"/>
+  <path d="M208 176 L512 204" class="line" marker-end="url(#f14a-arrow)"/>
+  <circle cx="208" cy="112" r="3" class="fill-ink"/>
+  <circle cx="208" cy="144" r="3" class="fill-ink"/>
+  <circle cx="208" cy="176" r="3" class="fill-ink"/>
+  <!-- object 0 -->
+  <rect x="560" y="64" width="80" height="40" class="box"/>
+  <text x="600" y="88" class="t-mid">header</text>
+  <rect x="640" y="64" width="40" height="40" class="box"/>
+  <text x="660" y="88" class="t-mono t-mid">x=1</text>
+  <rect x="680" y="64" width="40" height="40" class="box"/>
+  <text x="700" y="88" class="t-mono t-mid">y=2</text>
+  <!-- object 1 -->
+  <rect x="384" y="124" width="80" height="40" class="box"/>
+  <text x="424" y="148" class="t-mid">header</text>
+  <rect x="464" y="124" width="40" height="40" class="box"/>
+  <text x="484" y="148" class="t-mono t-mid">x=3</text>
+  <rect x="504" y="124" width="40" height="40" class="box"/>
+  <text x="524" y="148" class="t-mono t-mid">y=4</text>
+  <text x="560" y="140" class="t-small t-muted">8-byte header</text>
+  <text x="560" y="156" class="t-small t-muted">+ 8 bytes of data</text>
+  <!-- object 2 -->
+  <rect x="512" y="184" width="80" height="40" class="box"/>
+  <text x="552" y="208" class="t-mid">header</text>
+  <rect x="592" y="184" width="40" height="40" class="box"/>
+  <text x="612" y="208" class="t-mono t-mid">x=5</text>
+  <rect x="632" y="184" width="40" height="40" class="box"/>
+  <text x="652" y="208" class="t-mono t-mid">y=6</text>
+  <!-- what we'd like: row labels -->
+  <text x="20" y="296" class="t-title">What we'd like</text>
+  <text x="20" y="314" class="t-small t-muted">like an int[]</text>
+  <text x="20" y="338" class="t-small t-muted">8 bytes per point</text>
+  <text x="20" y="355" class="t-small t-accent">24 bytes in total</text>
+  <!-- flattened row -->
+  <rect x="176" y="280" width="80" height="40" class="box-accent"/>
+  <rect x="256" y="280" width="80" height="40" class="box-accent"/>
+  <rect x="336" y="280" width="80" height="40" class="box-accent"/>
+  <path d="M216 280 V320 M296 280 V320 M376 280 V320" class="line-accent dashed"/>
+  <text x="196" y="304" class="t-mono t-mid">x=1</text>
+  <text x="236" y="304" class="t-mono t-mid">y=2</text>
+  <text x="276" y="304" class="t-mono t-mid">x=3</text>
+  <text x="316" y="304" class="t-mono t-mid">y=4</text>
+  <text x="356" y="304" class="t-mono t-mid">x=5</text>
+  <text x="396" y="304" class="t-mono t-mid">y=6</text>
+  <path d="M177 330 V336 H255 V330" class="line-muted"/>
+  <text x="216" y="352" class="t-small t-muted t-mid">8 bytes</text>
+  <text x="440" y="298" class="t-small t-muted">contiguous: no headers,</text>
+  <text x="440" y="314" class="t-small t-muted">no pointers to follow</text>
+</svg>

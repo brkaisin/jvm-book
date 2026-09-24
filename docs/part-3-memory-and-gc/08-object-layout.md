@@ -21,7 +21,7 @@ Figure 8.1 shows what this means for a real object: a `java.lang.Long`, which ha
 
 <figure class="fig">
 {{#include ../figures/08-long-layouts.svg}}
-<figcaption><b>Figure 8.1</b> — A <code>java.lang.Long</code> in both header layouts, drawn to scale. Objects start on 8-byte boundaries (dashed lines).</figcaption>
+<figcaption><b>Figure 8.1.</b> A <code>java.lang.Long</code> in both header layouts, drawn to scale. Objects start on 8-byte boundaries (dashed lines).</figcaption>
 </figure>
 
 In the legacy layout the header takes 12 bytes: an 8-byte **mark word** plus a 4-byte **compressed class pointer**. A `long` must sit on an 8-byte boundary, so it can't start before offset 16, and 4 bytes are lost to padding. In the compact layout the class pointer lives *inside* the 8-byte header, so the value starts right at offset 8 and the whole object shrinks by a third.
@@ -32,23 +32,12 @@ Four bytes per object doesn't sound like much. But a typical Java or Scala heap 
 
 ## The Mark Word
 
-The **mark word** is the first 64 bits of every object. It is a multipurpose field: it stores different information depending on what state the object is in. Here is what it looks like on a current (JDK 27) 64-bit JVM, for an ordinary unlocked object, in both layouts:
+The **mark word** is the first 64 bits of every object. It is a multipurpose field: it stores different information depending on what state the object is in. Figure 8.2 shows what it looks like on a current (JDK 27) 64-bit JVM, for an ordinary unlocked object, in both layouts.
 
-```text
-Legacy mark word (followed by a separate 4-byte class pointer)
- 63            42 41                  11 10     7 6     3   2   1  0
-┌────────────────┬──────────────────────┬────────┬───────┬─────┬─────┐
-│   unused (22)  │ identity hash (31)   │ Vh (4) │age (4)│ SF  │lock │
-└────────────────┴──────────────────────┴────────┴───────┴─────┴─────┘
-
-Compact header (the whole header)
- 63            42 41                  11 10     7 6     3   2   1  0
-┌────────────────┬──────────────────────┬────────┬───────┬─────┬─────┐
-│ class id (22)  │ identity hash (31)   │ Vh (4) │age (4)│ SF  │lock │
-└────────────────┴──────────────────────┴────────┴───────┴─────┴─────┘
-
-Vh = reserved for Valhalla    SF = self-forwarded (GC)    lock = 2 bits
-```
+<figure class="fig">
+{{#include ../figures/08-mark-word.svg}}
+<figcaption><b>Figure 8.2.</b> The header of an unlocked object in both layouts, with the mark word drawn to scale bit by bit (the class pointer is shortened). The lower 42 bits are identical; only the top 22 bits change.</figcaption>
+</figure>
 
 The trick of compact headers is visible right there: the legacy mark word had 22 unused bits at the top. The compact layout puts a 22-bit *class id* in them, and the separate 4-byte class pointer disappears.
 

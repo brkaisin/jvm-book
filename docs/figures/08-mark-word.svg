@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 24 760 292" role="img" aria-labelledby="f8b-title f8b-desc">
+  <title id="f8b-title">The legacy mark word and the compact object header, bit by bit</title>
+  <desc id="f8b-desc">Two 64-bit words drawn to scale, bit 63 on the left and bit 0 on the right, for an ordinary unlocked object on JDK 27. Legacy mark word: bits 63 to 42 unused (22 bits), bits 41 to 11 identity hash (31 bits), bits 10 to 7 reserved for Valhalla (4 bits), bits 6 to 3 GC age (4 bits), bit 2 self-forwarded (1 bit), bits 1 to 0 lock bits (2 bits); it is followed by a separate 32-bit class pointer (drawn shortened, with a broken edge), making a 12-byte header. Compact header: identical except that bits 63 to 42 hold a 22-bit class id, highlighted, and there is no class pointer after it, making an 8-byte header.</desc>
+  <defs>
+    <pattern id="f8b-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/>
+    </pattern>
+  </defs>
+  <!-- bit ruler -->
+  <text x="29" y="40" class="t-mono t-muted t-mid">63</text>
+  <text x="242" y="40" class="t-mono t-muted t-end">42</text>
+  <text x="246" y="40" class="t-mono t-muted">41</text>
+  <text x="552" y="40" class="t-mono t-muted t-end">11</text>
+  <text x="556" y="40" class="t-mono t-muted">10</text>
+  <text x="589" y="40" class="t-mono t-muted t-mid">7</text>
+  <text x="599" y="40" class="t-mono t-muted t-mid">6</text>
+  <text x="629" y="40" class="t-mono t-muted t-mid">3</text>
+  <text x="639" y="40" class="t-mono t-muted t-mid">2</text>
+  <text x="649" y="40" class="t-mono t-muted t-mid">1</text>
+  <text x="659" y="40" class="t-mono t-muted t-mid">0</text>
+  <path d="M24 52 H664 M24 46 V52 M244 46 V52 M554 46 V52 M594 46 V52 M634 46 V52 M644 46 V52 M664 46 V52" class="line-muted"/>
+  <path d="M34 49 V52 M44 49 V52 M54 49 V52 M64 49 V52 M74 49 V52 M84 49 V52 M94 49 V52 M104 49 V52 M114 49 V52 M124 49 V52 M134 49 V52 M144 49 V52 M154 49 V52 M164 49 V52 M174 49 V52 M184 49 V52 M194 49 V52 M204 49 V52 M214 49 V52 M224 49 V52 M234 49 V52 M254 49 V52 M264 49 V52 M274 49 V52 M284 49 V52 M294 49 V52 M304 49 V52 M314 49 V52 M324 49 V52 M334 49 V52 M344 49 V52 M354 49 V52 M364 49 V52 M374 49 V52 M384 49 V52 M394 49 V52 M404 49 V52 M414 49 V52 M424 49 V52 M434 49 V52 M444 49 V52 M454 49 V52 M464 49 V52 M474 49 V52 M484 49 V52 M494 49 V52 M504 49 V52 M514 49 V52 M524 49 V52 M534 49 V52 M544 49 V52 M564 49 V52 M574 49 V52 M584 49 V52 M604 49 V52 M614 49 V52 M624 49 V52 M654 49 V52" class="line-muted"/>
+  <!-- field boundary guides -->
+  <path d="M244 58 V236 M554 58 V236 M594 58 V236 M634 58 V236 M644 58 V236" class="rule dashed"/>
+  <!-- legacy -->
+  <text x="24" y="78" class="t-title">Legacy header, 12 bytes</text>
+  <rect x="24" y="88" width="220" height="48" class="box-ghost" style="fill: url(#f8b-hatch)"/>
+  <text x="134" y="109" class="t-muted t-mid">unused</text>
+  <text x="134" y="126" class="t-small t-muted t-mid">22 bits</text>
+  <rect x="244" y="88" width="310" height="48" class="box"/>
+  <text x="399" y="109" class="t-mid">identity hash</text>
+  <text x="399" y="126" class="t-small t-muted t-mid">31 bits</text>
+  <rect x="554" y="88" width="40" height="48" class="box"/>
+  <text x="574" y="117" class="t-small t-muted t-mid">4</text>
+  <rect x="594" y="88" width="40" height="48" class="box"/>
+  <text x="614" y="117" class="t-small t-muted t-mid">4</text>
+  <rect x="634" y="88" width="10" height="48" class="box"/>
+  <text x="639" y="117" class="t-small t-muted t-mid">1</text>
+  <rect x="644" y="88" width="20" height="48" class="box"/>
+  <text x="654" y="117" class="t-small t-muted t-mid">2</text>
+  <path d="M664 88 H736 L744 96 L736 104 L744 112 L736 120 L744 128 L736 136 H664 Z" class="box"/>
+  <text x="700" y="109" class="t-mid">class ptr</text>
+  <text x="700" y="126" class="t-small t-muted t-mid">32 bits</text>
+  <!-- compact -->
+  <text x="24" y="172" class="t-title">Compact header, 8 bytes</text>
+  <rect x="24" y="182" width="220" height="48" class="box-accent"/>
+  <text x="134" y="203" class="t-mid">class id</text>
+  <text x="134" y="220" class="t-small t-muted t-mid">22 bits</text>
+  <rect x="244" y="182" width="310" height="48" class="box"/>
+  <text x="399" y="203" class="t-mid">identity hash</text>
+  <text x="399" y="220" class="t-small t-muted t-mid">31 bits</text>
+  <rect x="554" y="182" width="40" height="48" class="box"/>
+  <text x="574" y="211" class="t-small t-muted t-mid">4</text>
+  <rect x="594" y="182" width="40" height="48" class="box"/>
+  <text x="614" y="211" class="t-small t-muted t-mid">4</text>
+  <rect x="634" y="182" width="10" height="48" class="box"/>
+  <text x="639" y="211" class="t-small t-muted t-mid">1</text>
+  <rect x="644" y="182" width="20" height="48" class="box"/>
+  <text x="654" y="211" class="t-small t-muted t-mid">2</text>
+  <path d="M664 182 H736 L744 190 L736 198 L744 206 L736 214 L744 222 L736 230 H664 Z" class="box-ghost"/>
+  <text x="700" y="203" class="t-small t-muted t-mid">no class</text>
+  <text x="700" y="218" class="t-small t-muted t-mid">pointer</text>
+  <!-- callouts for the small fields (same in both layouts) -->
+  <path d="M574 230 V252 H544" class="line-muted"/>
+  <text x="538" y="256" class="t-small t-end">reserved for Valhalla</text>
+  <path d="M614 230 V268 H544" class="line-muted"/>
+  <text x="538" y="272" class="t-small t-end">GC age</text>
+  <path d="M639 230 V284 H544" class="line-muted"/>
+  <text x="538" y="288" class="t-small t-end">self-forwarded</text>
+  <path d="M654 230 V300 H544" class="line-muted"/>
+  <text x="538" y="304" class="t-small t-end">lock bits</text>
+</svg>

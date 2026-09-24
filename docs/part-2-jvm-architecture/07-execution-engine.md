@@ -74,7 +74,7 @@ The typical path is **0 → 3 → 4**: interpreted at first, compiled by C1 with
 
 <figure class="fig">
 {{#include ../figures/07-tiered-aot.svg}}
-<figcaption><b>Figure 7.1</b> — A method climbs from the interpreter to C1 and then C2, falls back to the interpreter when a speculation fails, and the AOT cache lets it skip steps.</figcaption>
+<figcaption><b>Figure 7.1.</b> A method climbs from the interpreter to C1 and then C2, falls back to the interpreter when a speculation fails, and the AOT cache lets it skip steps.</figcaption>
 </figure>
 
 The solid arrows are the classic JIT pipeline (trivial methods take a side exit to tier 1, not shown). The dashed arrows coming down from the cache are the shortcuts that Project Leyden's AOT cache adds, which we'll look at [below](#the-aot-cache-project-leyden).

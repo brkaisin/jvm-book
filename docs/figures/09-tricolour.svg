@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 24 760 368" role="img" aria-labelledby="f9c-title f9c-desc">
+  <title id="f9c-title">Tri-colour marking and the case barriers prevent</title>
+  <desc id="f9c-desc">Left: marking in progress. From the GC roots, objects A, B and C are black (reached and fully scanned), D and E are grey (reached, fields not scanned yet) and form the wavefront, F and G are white (not reached yet) but will be reached through the grey objects. H is white and unreachable, so it is garbage when marking ends. No black object points directly to a white one. Right: the danger during concurrent marking. The application stores a reference to white object C into black object A, then grey object B drops its reference to C. A is never scanned again, so C would stay white and be freed while still in use; barriers prevent this. Legend: white is drawn as an empty dashed box, grey as a hatched box, black as a solid accent box.</desc>
+  <defs>
+    <pattern id="f9c-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/>
+    </pattern>
+    <marker id="f9c-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-ink"/>
+    </marker>
+    <marker id="f9c-arrow-muted" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-muted"/>
+    </marker>
+    <marker id="f9c-arrow-warm" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-warm"/>
+    </marker>
+  </defs>
+  <!-- left panel: marking in progress -->
+  <text x="16" y="44" class="t-title">Marking in progress</text>
+  <rect x="16" y="64" width="320" height="32" class="box"/>
+  <text x="176" y="85" class="t-mid">GC roots</text>
+  <path d="M96 96 V128" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M288 96 V128" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M88 160 L52 208" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M104 160 L160 208" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M64 224 H144" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M288 160 V208" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M168 240 V288" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M276 240 L184 288" class="line" marker-end="url(#f9c-arrow)"/>
+  <path d="M288 240 V288" class="line" marker-end="url(#f9c-arrow)"/>
+  <!-- black -->
+  <rect x="72" y="128" width="48" height="32" class="box-accent"/>
+  <text x="96" y="149" class="t-mid">A</text>
+  <rect x="264" y="128" width="48" height="32" class="box-accent"/>
+  <text x="288" y="149" class="t-mid">B</text>
+  <rect x="16" y="208" width="48" height="32" class="box-accent"/>
+  <text x="40" y="229" class="t-mid">C</text>
+  <!-- grey -->
+  <rect x="144" y="208" width="48" height="32" class="box" style="fill: url(#f9c-hatch)"/>
+  <text x="168" y="229" class="t-mid">D</text>
+  <rect x="264" y="208" width="48" height="32" class="box" style="fill: url(#f9c-hatch)"/>
+  <text x="288" y="229" class="t-mid">E</text>
+  <!-- wavefront -->
+  <path d="M16 264 H336" class="line-accent dashed"/>
+  <text x="344" y="260" class="t-small t-accent">wavefront</text>
+  <text x="344" y="275" class="t-small t-muted">moves down</text>
+  <!-- white -->
+  <rect x="144" y="288" width="48" height="32" class="box-ghost"/>
+  <text x="168" y="309" class="t-mid">F</text>
+  <rect x="264" y="288" width="48" height="32" class="box-ghost"/>
+  <text x="288" y="309" class="t-mid">G</text>
+  <rect x="16" y="288" width="48" height="32" class="box-ghost"/>
+  <text x="40" y="309" class="t-mid">H</text>
+  <text x="16" y="338" class="t-small t-muted">unreachable:</text>
+  <text x="16" y="353" class="t-small t-muted">garbage</text>
+  <!-- divider -->
+  <path d="M432 40 V344" class="rule"/>
+  <!-- right panel: the lost object -->
+  <text x="464" y="44" class="t-title">What barriers prevent</text>
+  <rect x="464" y="128" width="48" height="32" class="box-accent"/>
+  <text x="488" y="149" class="t-mid">A</text>
+  <rect x="664" y="128" width="48" height="32" class="box" style="fill: url(#f9c-hatch)"/>
+  <text x="688" y="149" class="t-mid">B</text>
+  <rect x="552" y="224" width="48" height="32" class="box-ghost"/>
+  <text x="576" y="245" class="t-mid">C</text>
+  <path d="M500 160 L564 224" class="line-warm" marker-end="url(#f9c-arrow-warm)"/>
+  <text x="516" y="204" class="t-small t-warm t-end">1. app stores</text>
+  <text x="516" y="219" class="t-small t-warm t-end">A.f = C</text>
+  <path d="M676 160 L588 224" class="line-muted dashed"/>
+  <path d="M626 186 L638 198 M638 186 L626 198" class="line"/>
+  <text x="648" y="208" class="t-small">2. B drops its</text>
+  <text x="648" y="223" class="t-small">reference to C</text>
+  <text x="576" y="282" class="t-small t-muted t-mid">A is black, so it is never scanned again:</text>
+  <text x="576" y="297" class="t-small t-muted t-mid">C stays white and is freed while in use</text>
+  <!-- legend -->
+  <rect x="16" y="368" width="32" height="20" class="box-ghost"/>
+  <text x="56" y="383" class="t-title">White</text>
+  <text x="106" y="383" class="t-small t-muted">not reached yet</text>
+  <rect x="240" y="368" width="32" height="20" class="box" style="fill: url(#f9c-hatch)"/>
+  <text x="280" y="383" class="t-title">Grey</text>
+  <text x="322" y="383" class="t-small t-muted">reached, fields not scanned</text>
+  <rect x="504" y="368" width="32" height="20" class="box-accent"/>
+  <text x="544" y="383" class="t-title">Black</text>
+  <text x="592" y="383" class="t-small t-muted">reached and scanned</text>
+</svg>

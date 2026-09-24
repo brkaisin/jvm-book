@@ -268,14 +268,14 @@ html {
 }
 
 .fig text { fill: var(--fig-ink); font-size: 13px; }
-.fig text.t-title { font-size: 14px; font-weight: 650; }
-.fig text.t-small { font-size: 11.5px; }
-.fig text.t-muted { fill: var(--fig-muted); }
-.fig text.t-accent { fill: var(--fig-accent); }
-.fig text.t-warm { fill: var(--fig-warm); font-weight: 600; }
-.fig text.t-mono { font-family: var(--font-mono); font-size: 11.5px; }
-.fig text.t-mid { text-anchor: middle; }
-.fig text.t-end { text-anchor: end; }
+.fig .t-title { font-size: 14px; font-weight: 650; }
+.fig .t-small { font-size: 11.5px; }
+.fig .t-muted { fill: var(--fig-muted); }
+.fig .t-accent { fill: var(--fig-accent); }
+.fig .t-warm { fill: var(--fig-warm); font-weight: 600; }
+.fig .t-mono { font-family: var(--font-mono); font-size: 11.5px; }
+.fig .t-mid { text-anchor: middle; }
+.fig .t-end { text-anchor: end; }
 
 .fig .box { fill: var(--fig-box); stroke: var(--fig-ink); stroke-width: 1.2; }
 .fig .box-accent { fill: var(--fig-accent-soft); stroke: var(--fig-accent); stroke-width: 1.4; }

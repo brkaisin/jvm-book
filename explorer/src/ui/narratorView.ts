@@ -1,8 +1,9 @@
-// The narrator's face: a small glowing avatar that moves while it talks, the
-// topic it is talking about, subtitles following the voice sentence by
-// sentence, and buttons to skip or stop it.
+// The narrator's face: a small avatar that moves while it talks, the topic it
+// is talking about, subtitles following the voice sentence by sentence, a
+// choice of voice, and buttons to skip or stop it.
 
 import type { Line, NarratorListener } from '../audio/narrator';
+import { voiceLabel } from '../audio/voices';
 import { button, h } from './dom';
 
 /** Start offsets of the sentences in `text`. */
@@ -15,6 +16,7 @@ export function sentenceStarts(text: string): number[] {
 export interface NarratorControls {
   skip(): void;
   stop(): void;
+  setVoice(name: string): void;
 }
 
 export class NarratorView implements NarratorListener {
@@ -22,6 +24,7 @@ export class NarratorView implements NarratorListener {
   private readonly spoken = h('span', { class: 'spoken' });
   private readonly rest = h('span', {});
   private readonly waiting = h('span', { class: 'waiting' });
+  private readonly voicePicker = h('select', { class: 'voice', title: 'Pick another voice', 'aria-label': 'Voice', hidden: true });
   private text = '';
   private starts: number[] = [0];
   private controls: NarratorControls | null = null;
@@ -34,10 +37,20 @@ export class NarratorView implements NarratorListener {
         'div',
         { class: 'narrator-actions' },
         this.waiting,
+        this.voicePicker,
         button('⏭', () => this.controls?.skip(), { title: 'Skip this explanation', 'aria-label': 'Skip' }),
         button('⏹', () => this.controls?.stop(), { title: 'Stop talking (turn the voice off with N)', 'aria-label': 'Stop' }),
       ),
     );
+    this.voicePicker.addEventListener('change', () => this.controls?.setVoice(this.voicePicker.value));
+  }
+
+  voices(voices: SpeechSynthesisVoice[], current: SpeechSynthesisVoice | null): void {
+    // A handful is plenty: past the first few, voices only get more robotic.
+    const shown = voices.slice(0, 8);
+    if (current && !shown.includes(current)) shown.push(current);
+    this.voicePicker.replaceChildren(...shown.map((v) => h('option', { value: v.name, selected: v === current }, voiceLabel(v))));
+    this.voicePicker.hidden = shown.length < 2;
   }
 
   /** The buttons need the narrator, which needs this view: wired after both exist. */
@@ -70,7 +83,7 @@ export class NarratorView implements NarratorListener {
     const from = this.starts[s];
     const to = this.starts[s + 1] ?? this.text.length;
     const wordEnd = this.text.indexOf(' ', index + 1);
-    const cut = index === 0 ? from : Math.min(to, wordEnd < 0 ? this.text.length : wordEnd);
+    const cut = index === from ? from : Math.min(to, wordEnd < 0 ? this.text.length : wordEnd);
     this.spoken.textContent = this.text.slice(from, cut);
     this.rest.textContent = this.text.slice(cut, to);
   }

@@ -29,7 +29,7 @@ import { World } from './world';
 import { Sound, type Cue } from './audio/sound';
 import { Narrator } from './audio/narrator';
 import { NarratorView } from './ui/narratorView';
-import { loadPref, savePref } from './ui/prefs';
+import { loadPref, loadText, savePref, saveText } from './ui/prefs';
 import { AREAS } from './content';
 import { LabPanel } from './ui/labPanel';
 
@@ -80,13 +80,13 @@ class App {
   private lab!: LabPanel;
   private readonly sound = new Sound(loadPref('sound', true));
   private readonly narratorView = new NarratorView(byId('narrator'));
-  private readonly narrator = new Narrator(this.narratorView, loadPref('narrator', true));
+  private readonly narrator = new Narrator(this.narratorView, loadPref('narrator', true), loadText('voice'));
   private readonly moments = new MomentCard(
     byId('moment'),
     (id) => this.select(id),
     (m) => {
       this.sound.play('moment');
-      this.narrator.say(m.text, `What just happened? ${m.title}`, 'background');
+      this.narrator.say(`${/[.!?]$/.test(m.title) ? m.title : `${m.title}.`} ${m.text}`, `What just happened? ${m.title}`, 'background');
     },
   );
 
@@ -145,7 +145,15 @@ class App {
       (moment) => this.moments.push(moment),
       () => !EMBED && document.body.classList.contains('entered') && !this.tour.active,
     );
-    this.narratorView.bind(this.narrator);
+    this.narratorView.bind({
+      skip: () => this.narrator.skip(),
+      stop: () => this.narrator.stop(),
+      setVoice: (name) => {
+        this.narrator.setVoice(name);
+        saveText('voice', name);
+        this.narrator.say('Hi! This is how I sound.', 'Voice');
+      },
+    });
     this.lab = new LabPanel(byId('lab'), this.world.lab, {
       started: (s) => this.narrator.say(s ? `Watch ${s.watch}.` : 'Running your code. Watch the gold tower and the heap.', `Code Lab · ${s?.title ?? 'your code'}`),
       close: () => this.toggleLab(false),
@@ -409,7 +417,7 @@ class App {
     const bar = byId('controls');
     bar.replaceChildren(
       button('<b>☰</b> Map', () => this.map.toggle(), { title: 'All hotspots (M)', id: 'c-map' }),
-      button('<b>✦</b> Tour', () => (this.tour.active ? this.tour.stop() : this.startTour()), { title: 'Guided tour (T)' }),
+      button('<b>↝</b> Tour', () => (this.tour.active ? this.tour.stop() : this.startTour()), { title: 'Guided tour (T)' }),
       button('<b>&lt;/&gt;</b> Code', () => this.toggleLab(), { title: 'Code Lab: run your own Java (C)', id: 'c-lab' }),
       button('<b>?</b> Legend', () => this.legend.toggle(), { title: 'What the colours mean (K)' }),
       button('<b>⌂</b>', () => this.rig.flyTo(HOME), { title: 'Overview (H)' }),

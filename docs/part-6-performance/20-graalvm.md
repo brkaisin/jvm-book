@@ -13,43 +13,14 @@ The answer is to do some of that work *ahead of time*. There are two very differ
 
 ## A Spectrum, Not a Switch
 
-"Ahead-of-time" isn't one thing. Think of it as a spectrum: the more you decide before the program runs, the faster it starts, and the less dynamic it is allowed to be.
+"Ahead-of-time" isn't one thing. Think of it as a spectrum: the more you decide before the program runs, the faster it starts, and the less dynamic it is allowed to be. Figure 20.1 shows the stations along the way.
 
-```text
-    ┌────────────────────────────────────────┐
-    │ Plain JVM                              │
-    │ everything happens at runtime          │
-    └────────────────────────────────────────┘
-                        │
-                        │
-┌─ Project Leyden ──────┼─────────────────────────┐
-│                       ▼     still a full JVM    │
-│   ┌────────────────────────────────────────┐    │
-│   │ CDS / AOT cache                        │    │
-│   │ pre-parsed, pre-linked classes         │    │
-│   └────────────────────────────────────────┘    │
-│                       │                         │
-│                       ▼                         │
-│   ┌────────────────────────────────────────┐    │
-│   │ AOT cache + profiles                   │    │
-│   │ JIT starts informed                    │    │
-│   └────────────────────────────────────────┘    │
-│                       │                         │
-│                       ▼                         │
-│   ┌────────────────────────────────────────┐    │
-│   │ AOT cache + compiled code              │    │
-│   │ JIT starts with code                   │    │
-│   └────────────────────────────────────────┘    │
-│                       │                         │
-└───────────────────────┼─────────────────────────┘
-                        ▼
-    ┌────────────────────────────────────────┐
-    │ Native Image                           │
-    │ closed world, no JIT, no class loading │
-    └────────────────────────────────────────┘
-```
+<figure class="fig">
+{{#include ../figures/20-aot-spectrum.svg}}
+<figcaption><b>Figure 20.1</b> — Each station precomputes more than the one before it; everything up to the AOT cache is still a full JVM, and only Native Image trades dynamism for a closed world.</figcaption>
+</figure>
 
-Going down the chain, startup and warmup get faster. Everything inside the Leyden box keeps the **full dynamism of Java**: class loading, reflection, bytecode generation, and a JIT that can re-optimize. The last step, Native Image, gives some of that up in exchange for the fastest startup and the smallest footprint.
+Moving right, startup and warmup get faster. Everything up to and including the Leyden AOT cache keeps the **full dynamism of Java**: class loading, reflection, bytecode generation, and a JIT that can re-optimize. The last step, Native Image, gives some of that up in exchange for the fastest startup and the smallest footprint.
 
 ## Project Leyden: The AOT Cache
 

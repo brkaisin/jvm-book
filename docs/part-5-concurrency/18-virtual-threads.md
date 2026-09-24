@@ -45,34 +45,12 @@ The key insight: **you can write plain blocking code and it scales**. No callbac
 
 ## How Virtual Threads Work
 
-Virtual threads are **multiplexed** (M:N) onto a small pool of platform threads called **carrier threads**. The scheduler is a dedicated `ForkJoinPool` whose parallelism defaults to the number of CPU cores (tunable with `-Djdk.virtualThreadScheduler.parallelism=N`, rarely needed):
+Virtual threads are **multiplexed** (M:N) onto a small pool of platform threads called **carrier threads**. The scheduler is a dedicated `ForkJoinPool` whose parallelism defaults to the number of CPU cores (tunable with `-Djdk.virtualThreadScheduler.parallelism=N`, rarely needed). Figure 18.1 shows how the pieces fit together:
 
-```text
-┌─ Virtual threads: millions possible ─────────────────────────────┐
-│                                                                  │
-│ ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────────────┐    │
-│ │ VT-1    │   │ VT-4    │   │ VT-2    │   │ VT-3            │    │
-│ │ running │   │ ready   │   │ running │   │ waiting for I/O │    │
-│ └─────────┘   └─────────┘   └─────────┘   └─────────────────┘    │
-│     │              ┆             │                 ┆             │
-└─────┼──────────────┼─────────────┼─────────────────┼─────────────┘
-      │ mounted on   ┆ queued      │ mounted on      ┆ parked: stack on
-      │              ▼             │                 ┆ the heap, no
-      │     ┌────────────────────┐ │                 ┆ carrier used
-      │     │ Scheduler          │ │                 ▼
-      │     │ ForkJoinPool       │ │           ┌───────────┐
-      │     └────────────────────┘ │           │ Java heap │
-      │         │             │    │           └───────────┘
-      ▼         ▼             ▼    ▼
-  ┌──────────────────┐  ┌──────────────────┐
-  │ Carrier thread 1 │  │ Carrier thread 2 │
-  └──────────────────┘  └──────────────────┘
-           │                     │
-           ▼                     ▼
-     ┌────────────┐        ┌────────────┐
-     │ CPU core 0 │        │ CPU core 1 │
-     └────────────┘        └────────────┘
-```
+<figure class="fig">
+{{#include ../figures/18-carriers.svg}}
+<figcaption><b>Figure 18.1</b> — Many virtual threads share a few carrier threads: running ones are mounted on a carrier, ready ones wait in the scheduler's queue, and blocked ones are parked as stack chunks on the heap, holding no carrier at all.</figcaption>
+</figure>
 
 When a virtual thread blocks, for example on a socket read:
 

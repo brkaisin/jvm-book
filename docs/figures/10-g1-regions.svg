@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 24 760 296" role="img" aria-labelledby="f10-title f10-desc">
+  <title id="f10-title">The G1 heap divided into equal-sized regions</title>
+  <desc id="f10-desc">A grid of 32 equal-sized regions, each 1 to 32 MB. Regions are marked E for Eden, S for Survivor, O for Old (hatched), or left empty and dashed when free; roles are scattered, not contiguous. One humongous object, at least half a region in size, occupies three contiguous regions in the bottom row. An accent outline marks the collection set of one mixed GC: every Eden and Survivor region plus two old regions with the most garbage.</desc>
+  <defs>
+    <pattern id="f10-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/>
+    </pattern>
+  </defs>
+  <!-- region size -->
+  <text x="16" y="40" class="t-small t-muted">one region: 1–32 MB, a power of two</text>
+  <path d="M17 54 V48 H75 V54" class="line-muted"/>
+  <!-- regions -->
+  <rect x="16" y="64" width="60" height="44" class="box"/>
+  <text x="46" y="91" class="t-mid">E</text>
+  <rect x="88" y="64" width="60" height="44" class="box"/>
+  <text x="118" y="91" class="t-mid">E</text>
+  <rect x="160" y="64" width="60" height="44" class="box"/>
+  <text x="190" y="91" class="t-mid">S</text>
+  <rect x="232" y="64" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="262" y="91" class="t-mid">O</text>
+  <rect x="304" y="64" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="334" y="91" class="t-mid">O</text>
+  <rect x="376" y="64" width="60" height="44" class="box-ghost"/>
+  <rect x="448" y="64" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="478" y="91" class="t-mid">O</text>
+  <rect x="520" y="64" width="60" height="44" class="box"/>
+  <text x="550" y="91" class="t-mid">E</text>
+  <rect x="16" y="120" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="46" y="147" class="t-mid">O</text>
+  <rect x="88" y="120" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="118" y="147" class="t-mid">O</text>
+  <rect x="160" y="120" width="60" height="44" class="box"/>
+  <text x="190" y="147" class="t-mid">E</text>
+  <rect x="232" y="120" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="262" y="147" class="t-mid">O</text>
+  <rect x="304" y="120" width="60" height="44" class="box-ghost"/>
+  <rect x="376" y="120" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="406" y="147" class="t-mid">O</text>
+  <rect x="448" y="120" width="60" height="44" class="box"/>
+  <text x="478" y="147" class="t-mid">E</text>
+  <rect x="520" y="120" width="60" height="44" class="box"/>
+  <text x="550" y="147" class="t-mid">S</text>
+  <rect x="16" y="176" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="46" y="203" class="t-mid">O</text>
+  <rect x="88" y="176" width="60" height="44" class="box-ghost"/>
+  <rect x="160" y="176" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="190" y="203" class="t-mid">O</text>
+  <rect x="232" y="176" width="60" height="44" class="box"/>
+  <text x="262" y="203" class="t-mid">E</text>
+  <rect x="304" y="176" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="334" y="203" class="t-mid">O</text>
+  <rect x="376" y="176" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="406" y="203" class="t-mid">O</text>
+  <rect x="448" y="176" width="60" height="44" class="box-ghost"/>
+  <rect x="520" y="176" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="550" y="203" class="t-mid">O</text>
+  <rect x="16" y="232" width="60" height="44" class="box"/>
+  <text x="46" y="259" class="t-mid">E</text>
+  <rect x="88" y="232" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="118" y="259" class="t-mid">O</text>
+  <rect x="160" y="232" width="60" height="44" class="box-ghost"/>
+  <rect x="232" y="232" width="60" height="44" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="262" y="259" class="t-mid">O</text>
+  <rect x="520" y="232" width="60" height="44" class="box-ghost"/>
+  <!-- one humongous object over three contiguous regions -->
+  <rect x="304" y="232" width="204" height="44" class="box-warm"/>
+  <path d="M370 232 V276" class="line-warm dashed"/>
+  <path d="M442 232 V276" class="line-warm dashed"/>
+  <text x="406" y="259" class="t-mid">H</text>
+  <path d="M305 286 V292 H507 V286" class="line-muted"/>
+  <text x="406" y="308" class="t-small t-muted t-mid">one humongous object (≥ ½ region) in contiguous regions</text>
+  <!-- collection set of one mixed GC -->
+  <rect x="12" y="60" width="68" height="52" class="line-accent"/>
+  <rect x="84" y="60" width="68" height="52" class="line-accent"/>
+  <rect x="156" y="60" width="68" height="52" class="line-accent"/>
+  <rect x="516" y="60" width="68" height="52" class="line-accent"/>
+  <rect x="156" y="116" width="68" height="52" class="line-accent"/>
+  <rect x="228" y="116" width="68" height="52" class="line-accent"/>
+  <rect x="444" y="116" width="68" height="52" class="line-accent"/>
+  <rect x="516" y="116" width="68" height="52" class="line-accent"/>
+  <rect x="228" y="172" width="68" height="52" class="line-accent"/>
+  <rect x="372" y="172" width="68" height="52" class="line-accent"/>
+  <rect x="12" y="228" width="68" height="52" class="line-accent"/>
+  <!-- legend -->
+  <rect x="616" y="64" width="32" height="24" class="box"/>
+  <text x="632" y="81" class="t-small t-mid">E</text>
+  <text x="660" y="81">Eden</text>
+  <rect x="616" y="96" width="32" height="24" class="box"/>
+  <text x="632" y="113" class="t-small t-mid">S</text>
+  <text x="660" y="113">Survivor</text>
+  <rect x="616" y="128" width="32" height="24" class="box" style="fill: url(#f10-hatch)"/>
+  <text x="632" y="145" class="t-small t-mid">O</text>
+  <text x="660" y="145">Old</text>
+  <rect x="616" y="160" width="32" height="24" class="box-warm"/>
+  <text x="632" y="177" class="t-small t-mid">H</text>
+  <text x="660" y="177">Humongous</text>
+  <rect x="616" y="192" width="32" height="24" class="box-ghost"/>
+  <text x="660" y="209">Free</text>
+  <rect x="616" y="240" width="32" height="24" class="line-accent"/>
+  <text x="660" y="257">collection set</text>
+  <text x="660" y="274" class="t-small t-muted">of one mixed GC</text>
+</svg>

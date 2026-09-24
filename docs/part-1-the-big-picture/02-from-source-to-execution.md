@@ -2,45 +2,12 @@
 
 ## The Journey of Your Code
 
-Every time you run a Scala or Java program, your source code goes through a remarkable transformation — from human-readable text to electrical signals flipping transistors. Let's trace that journey step by step.
+Every time you run a Scala or Java program, your source code goes through a remarkable transformation — from human-readable text to electrical signals flipping transistors. Figure 2.1 shows the whole trip; let's trace it step by step.
 
-```text
-          ┌───────────────────────────────────────┐
-          │              Source code              │
-          │             .scala / .java            │
-          └───────────────────┬───────────────────┘
-                              ▼
-          ┌───────────────────────────────────────┐
-          │        Compiler: scalac / javac       │
-          │              compile time             │
-          └───────────────────┬───────────────────┘
-                              ▼
-          ┌───────────────────────────────────────┐
-          │                Bytecode               │
-          │    .class files, packaged in a .jar   │
-          └───────────────────┬───────────────────┘
-    ┌─ JVM (runtime) ─────────┼─────────────────────────┐
-    │                         ▼                         │
-    │         ┌───────────────────────────────┐         │
-    │         │          Class loader         │         │
-    │         └───────────────┬───────────────┘         │
-    │                         ▼                         │
-    │         ┌───────────────────────────────┐         │
-    │         │       Bytecode verifier       │         │
-    │         └───────────────┬───────────────┘         │
-    │                         ▼                         │
-    │         ┌───────────────────────────────┐         │
-    │         │        Execution engine       │         │
-    │         │   interpreter + JIT compiler  │         │
-    │         └───────────────┬───────────────┘         │
-    │                         │                         │
-    └─────────────────────────┼─────────────────────────┘
-                              ▼
-          ┌───────────────────────────────────────┐
-          │          Native machine code          │
-          │            runs on the CPU            │
-          └───────────────────────────────────────┘
-```
+<figure class="fig">
+{{#include ../figures/02-source-to-execution.svg}}
+<figcaption><b>Figure 2.1</b> — Two languages, one bytecode format, one runtime: <code>javac</code> and <code>scalac</code> both emit <code>.class</code> files, which the JVM loads, verifies and runs, first interpreted and then JIT-compiled to native code.</figcaption>
+</figure>
 
 ## Step 1: Compilation — Source to Bytecode
 

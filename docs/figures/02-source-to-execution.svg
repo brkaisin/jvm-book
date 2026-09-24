@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 20 760 676" role="img" aria-labelledby="f2-title f2-desc">
+  <title id="f2-title">From Java and Scala source code to native machine code</title>
+  <desc id="f2-desc">At compile time, javac turns Hello.java and scalac turns Hello.scala into the same kind of output: .class files containing bytecode, usually packaged in a JAR. At run time, the JVM takes that bytecode through its class loader subsystem, which loads, links (including verification) and initializes each class on first use. Class metadata goes into the runtime data areas: the heap, the method area (metaspace) and the thread stacks. The execution engine runs the code, first with the interpreter, then with the JIT compiler (C1, then C2) for hot methods, and the result is native machine code running on the CPU.</desc>
+  <defs>
+    <marker id="f2-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M0 0.5 L8 4 L0 7.5 z" class="fill-ink"/>
+    </marker>
+  </defs>
+  <!-- row labels -->
+  <text x="20" y="64" class="t-title">Compile time</text>
+  <text x="20" y="82" class="t-small t-muted">once, on the</text>
+  <text x="20" y="98" class="t-small t-muted">developer's machine</text>
+  <text x="20" y="280" class="t-title">Run time</text>
+  <text x="20" y="298" class="t-small t-muted">every launch, inside</text>
+  <text x="20" y="314" class="t-small t-muted">the JVM process</text>
+  <path d="M20 232 H720" class="rule dashed"/>
+  <!-- sources -->
+  <rect x="200" y="40" width="176" height="48" class="box"/>
+  <text x="288" y="69" class="t-mid">Hello.java</text>
+  <rect x="504" y="40" width="176" height="48" class="box"/>
+  <text x="592" y="69" class="t-mid">Hello.scala</text>
+  <path d="M288 88 V144" class="line" marker-end="url(#f2-arrow)"/>
+  <text x="298" y="120" class="t-mono">javac</text>
+  <path d="M592 88 V144" class="line" marker-end="url(#f2-arrow)"/>
+  <text x="602" y="120" class="t-mono">scalac</text>
+  <!-- bytecode -->
+  <rect x="200" y="144" width="480" height="56" class="box-accent"/>
+  <text x="440" y="167" class="t-mid">.class files: bytecode</text>
+  <text x="440" y="185" class="t-small t-muted t-mid">one format for both languages, usually packaged in a .jar</text>
+  <!-- JVM -->
+  <rect x="160" y="256" width="560" height="328" class="line-muted"/>
+  <text x="176" y="280" class="t-title">JVM</text>
+  <path d="M440 200 V296" class="line" marker-end="url(#f2-arrow)"/>
+  <rect x="192" y="296" width="496" height="56" class="box"/>
+  <text x="440" y="319" class="t-mid">Class loader subsystem</text>
+  <text x="440" y="337" class="t-small t-muted t-mid">load → link (verify) → initialize, on first use</text>
+  <path d="M296 352 V400" class="line" marker-end="url(#f2-arrow)"/>
+  <text x="306" y="380" class="t-small t-muted">class metadata</text>
+  <path d="M568 352 V400" class="line" marker-end="url(#f2-arrow)"/>
+  <text x="578" y="380" class="t-small t-muted">code to run</text>
+  <!-- runtime data areas -->
+  <rect x="192" y="400" width="208" height="152" class="rule"/>
+  <text x="296" y="424" class="t-mid">Runtime data areas</text>
+  <rect x="208" y="440" width="176" height="28" class="box"/>
+  <text x="296" y="458" class="t-small t-mid">Heap</text>
+  <rect x="208" y="476" width="176" height="28" class="box"/>
+  <text x="296" y="494" class="t-small t-mid">Method area (metaspace)</text>
+  <rect x="208" y="512" width="176" height="28" class="box"/>
+  <text x="296" y="530" class="t-small t-mid">Thread stacks</text>
+  <path d="M408 476 H440" class="line" marker-start="url(#f2-arrow)" marker-end="url(#f2-arrow)"/>
+  <!-- execution engine -->
+  <rect x="448" y="400" width="240" height="152" class="rule"/>
+  <text x="568" y="424" class="t-mid">Execution engine</text>
+  <rect x="464" y="440" width="208" height="32" class="box"/>
+  <text x="568" y="461" class="t-small t-mid">Interpreter</text>
+  <path d="M568 472 V504" class="line" marker-end="url(#f2-arrow)"/>
+  <text x="578" y="492" class="t-small t-muted">hot methods</text>
+  <rect x="464" y="504" width="208" height="32" class="box"/>
+  <text x="568" y="525" class="t-small t-mid">JIT compiler (C1, then C2)</text>
+  <!-- native code -->
+  <path d="M568 552 V632" class="line" marker-end="url(#f2-arrow)"/>
+  <rect x="448" y="632" width="240" height="56" class="box"/>
+  <text x="568" y="655" class="t-mid">Native machine code</text>
+  <text x="568" y="673" class="t-small t-muted t-mid">runs on the CPU</text>
+</svg>

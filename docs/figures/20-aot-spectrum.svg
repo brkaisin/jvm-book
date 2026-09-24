@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 8 760 296" role="img" aria-labelledby="f20-title f20-desc">
+  <title id="f20-title">The ahead-of-time spectrum, from plain JIT to Native Image</title>
+  <desc id="f20-desc">A horizontal axis runs from fully dynamic, slow start and best long-run adaptivity on the left to closed world, instant start and restrictions on the right. Six stations sit along it. Plain JVM precomputes nothing. CDS, with a default archive since JDK 12, stores parsed class metadata. Project Leyden's AOT cache spans three stations while still being a full JVM: loaded and linked classes in JDK 24, method profiles in JDK 25 so the JIT starts informed, and compiled C1 and C2 code proposed for JDK 28 so the JIT starts with code. The first five stations keep class loading, reflection and a JIT that can re-optimize. GraalVM Native Image, at the far end, compiles reachable methods to machine code along with the initialized heap, under a closed-world assumption with no JIT or class loading.</desc>
+  <defs>
+    <marker id="f20-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 1 L10 5 L0 9 z" class="fill-ink"/>
+    </marker>
+  </defs>
+  <!-- axis -->
+  <text x="12" y="32" class="t-title">Fully dynamic</text>
+  <text x="12" y="50" class="t-small t-muted">slow start, best long-run adaptivity</text>
+  <text x="748" y="32" class="t-title t-end">Closed world</text>
+  <text x="748" y="50" class="t-small t-muted t-end">instant start, restrictions</text>
+  <text x="380" y="50" class="t-small t-muted t-mid">more decided before the program runs</text>
+  <path d="M12 64 H746" class="line" marker-end="url(#f20-arrow)"/>
+  <path d="M70 60 V68 M194 60 V68 M318 60 V68 M442 60 V68 M566 60 V68 M690 60 V68" class="line"/>
+  <!-- Project Leyden bracket -->
+  <text x="442" y="92" class="t-accent t-mid">Project Leyden: the AOT cache</text>
+  <path d="M261 110 V100 H623 V110" class="line-accent"/>
+  <!-- stations -->
+  <rect x="12" y="116" width="116" height="112" class="box"/>
+  <text x="70" y="140" class="t-title t-mid">Plain JVM</text>
+  <text x="70" y="158" class="t-small t-muted t-mid">baseline</text>
+  <text x="70" y="186" class="t-small t-mid">nothing: all work</text>
+  <text x="70" y="202" class="t-small t-mid">repeats at every</text>
+  <text x="70" y="218" class="t-small t-mid">start</text>
+  <rect x="136" y="116" width="116" height="112" class="box"/>
+  <text x="194" y="140" class="t-title t-mid">CDS</text>
+  <text x="194" y="158" class="t-small t-muted t-mid">default in JDK 12</text>
+  <text x="194" y="186" class="t-small t-mid">parsed class</text>
+  <text x="194" y="202" class="t-small t-mid">metadata</text>
+  <rect x="260" y="116" width="116" height="112" class="box-accent"/>
+  <text x="318" y="140" class="t-title t-mid">Classes</text>
+  <text x="318" y="158" class="t-small t-accent t-mid">JDK 24</text>
+  <text x="318" y="186" class="t-small t-mid">classes, already</text>
+  <text x="318" y="202" class="t-small t-mid">loaded and linked</text>
+  <rect x="384" y="116" width="116" height="112" class="box-accent"/>
+  <text x="442" y="140" class="t-title t-mid">+ Profiles</text>
+  <text x="442" y="158" class="t-small t-accent t-mid">JDK 25</text>
+  <text x="442" y="186" class="t-small t-mid">method profiles:</text>
+  <text x="442" y="202" class="t-small t-mid">the JIT starts</text>
+  <text x="442" y="218" class="t-small t-mid">informed</text>
+  <rect x="508" y="116" width="116" height="112" class="box-ghost"/>
+  <text x="566" y="140" class="t-title t-mid">+ Code</text>
+  <text x="566" y="158" class="t-small t-muted t-mid">JDK 28, proposed</text>
+  <text x="566" y="186" class="t-small t-mid">C1/C2 code:</text>
+  <text x="566" y="202" class="t-small t-mid">the JIT starts</text>
+  <text x="566" y="218" class="t-small t-mid">with code</text>
+  <rect x="632" y="116" width="116" height="112" class="box-warm"/>
+  <text x="690" y="140" class="t-title t-mid">Native Image</text>
+  <text x="690" y="158" class="t-small t-muted t-mid">GraalVM</text>
+  <text x="690" y="186" class="t-small t-mid">reachable methods</text>
+  <text x="690" y="202" class="t-small t-mid">as machine code,</text>
+  <text x="690" y="218" class="t-small t-mid">initialized heap</text>
+  <!-- what each side keeps -->
+  <path d="M13 238 V246 H623 V238" class="line-muted"/>
+  <text x="318" y="266" class="t-mid">still a full JVM</text>
+  <text x="318" y="284" class="t-small t-muted t-mid">class loading, reflection, a JIT that can re-optimize</text>
+  <path d="M633 238 V246 H747 V238" class="line-warm"/>
+  <text x="690" y="266" class="t-warm t-mid">closed world</text>
+  <text x="690" y="284" class="t-small t-muted t-mid">no JIT or class loading</text>
+</svg>

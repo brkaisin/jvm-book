@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 24 760 312" role="img" aria-labelledby="f18-title f18-desc">
+  <title id="f18-title">Virtual threads multiplexed onto carrier threads</title>
+  <desc id="f18-desc">Many virtual threads share two carrier threads. VT-1 and VT-2 are running, each mounted on a carrier thread; carriers are platform threads that run on CPU cores 0 and 1. VT-4, VT-5, VT-6 and more are ready and wait in the ForkJoinPool scheduler queue until a carrier is free. VT-2 blocks on I/O and is unmounted: its stack moves to a stack chunk in the Java heap, where parked virtual threads such as VT-3 and VT-7 use no carrier. When VT-3's I/O is ready it is unparked and goes back to the scheduler queue. M virtual threads run on N carriers, where N defaults to the number of cores.</desc>
+  <defs>
+    <marker id="f18-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-ink"/>
+    </marker>
+    <marker id="f18-arrow-muted" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-muted"/>
+    </marker>
+    <marker id="f18-arrow-warm" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-warm"/>
+    </marker>
+  </defs>
+  <!-- row labels -->
+  <text x="20" y="82" class="t-title">Ready</text>
+  <text x="20" y="100" class="t-small t-muted">waiting for a carrier</text>
+  <text x="20" y="189" class="t-title">Running</text>
+  <text x="20" y="219" class="t-title">Carriers</text>
+  <text x="20" y="235" class="t-small t-muted">platform threads</text>
+  <text x="20" y="309" class="t-title">CPU cores</text>
+  <!-- scheduler queue -->
+  <text x="150" y="46" class="t-small t-muted">scheduler queue (ForkJoinPool)</text>
+  <rect x="150" y="56" width="320" height="56" class="rule"/>
+  <rect x="158" y="68" width="56" height="32" class="box"/>
+  <text x="186" y="89" class="t-mid">VT-4</text>
+  <rect x="222" y="68" width="56" height="32" class="box"/>
+  <text x="250" y="89" class="t-mid">VT-5</text>
+  <rect x="286" y="68" width="56" height="32" class="box"/>
+  <text x="314" y="89" class="t-mid">VT-6</text>
+  <rect x="350" y="68" width="56" height="32" class="box"/>
+  <text x="378" y="89" class="t-mid">VT-8</text>
+  <text x="438" y="89" class="t-mid t-muted">…</text>
+  <!-- mount arrows -->
+  <path d="M222 112 V168" class="line" marker-end="url(#f18-arrow)"/>
+  <path d="M398 112 V168" class="line" marker-end="url(#f18-arrow)"/>
+  <text x="310" y="144" class="t-small t-muted t-mid">mount on a free carrier</text>
+  <!-- mounted virtual threads on carriers -->
+  <rect x="150" y="168" width="144" height="32" class="box-accent"/>
+  <text x="222" y="189" class="t-mid">VT-1</text>
+  <rect x="150" y="200" width="144" height="40" class="box"/>
+  <text x="222" y="225" class="t-mid">carrier 1</text>
+  <rect x="326" y="168" width="144" height="32" class="box-accent"/>
+  <text x="398" y="189" class="t-mid">VT-2</text>
+  <rect x="326" y="200" width="144" height="40" class="box"/>
+  <text x="398" y="225" class="t-mid">carrier 2</text>
+  <!-- cores -->
+  <path d="M222 240 V288" class="line-muted" marker-end="url(#f18-arrow-muted)"/>
+  <path d="M398 240 V288" class="line-muted" marker-end="url(#f18-arrow-muted)"/>
+  <rect x="150" y="288" width="144" height="32" class="box"/>
+  <text x="222" y="309" class="t-mid">core 0</text>
+  <rect x="326" y="288" width="144" height="32" class="box"/>
+  <text x="398" y="309" class="t-mid">core 1</text>
+  <!-- java heap with parked virtual threads -->
+  <text x="568" y="46" class="t-small t-muted">Java heap: parked threads</text>
+  <rect x="568" y="56" width="172" height="160" class="rule"/>
+  <rect x="584" y="64" width="140" height="40" class="box-ghost"/>
+  <text x="654" y="81" class="t-mid">VT-3</text>
+  <text x="654" y="97" class="t-small t-muted t-mid">stack chunk</text>
+  <text x="654" y="139" class="t-mid t-muted">…</text>
+  <rect x="584" y="164" width="140" height="40" class="box-ghost"/>
+  <text x="654" y="181" class="t-mid">VT-7</text>
+  <text x="654" y="197" class="t-small t-muted t-mid">stack chunk</text>
+  <!-- unmount: VT-2 blocks on I/O -->
+  <path d="M470 184 H584" class="line-warm" marker-end="url(#f18-arrow-warm)"/>
+  <text x="519" y="177" class="t-small t-warm t-mid">unmount</text>
+  <text x="519" y="199" class="t-small t-muted t-mid">blocks on I/O</text>
+  <!-- unpark: I/O ready, back to the queue -->
+  <path d="M584 84 H470" class="line-muted" marker-end="url(#f18-arrow-muted)"/>
+  <text x="519" y="77" class="t-small t-muted t-mid">I/O ready</text>
+  <text x="519" y="99" class="t-small t-muted t-mid">unpark</text>
+  <!-- M:N note -->
+  <text x="568" y="300" class="t-small t-muted">M virtual threads, N carriers</text>
+  <text x="568" y="316" class="t-small t-muted">N defaults to the core count</text>
+</svg>

@@ -47,7 +47,11 @@ test.describe('Code Lab', () => {
     const editor = page.locator('#lab textarea');
     await editor.fill('');
     await editor.pressSequentially('class Main { public static void main(String[] args) { System.out.println("gc " + 6 * 7); } }');
-    await expect(page.locator('#banner')).not.toHaveClass('stw');
+    // "class", "println"... contain l, m, n, s, c: none of their shortcuts may fire.
+    await expect(page.locator('#c-labels')).toHaveClass(/on/);
+    await expect(page.locator('#c-narrator')).toHaveClass(/on/);
+    await expect(page.locator('#map')).not.toHaveClass(/open/);
+    await expect(page.locator('#lab')).toHaveClass(/open/);
     await page.keyboard.press('Control+Enter');
     await expect(page.locator('.console')).toContainText('gc 42', { timeout: 20_000 });
   });

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { HOTSPOTS, type HotspotId } from '../src/content';
-import { enter, watchErrors } from './helpers';
+import { cameraSettled, enter, watchErrors } from './helpers';
 
 // Each element's main action, and what the event feed should then say.
 const POKES: [HotspotId, RegExp][] = [
@@ -33,7 +33,7 @@ test('the garbage collector collects when asked', async ({ page }) => {
 
 test('clicking a thing in the world opens it and runs its action', async ({ page }) => {
   await enter(page, '#heap');
-  await page.waitForTimeout(2500);
+  await cameraSettled(page);
   const before = await page.locator('#feed .ev').count();
   // Click right in the middle of a free heap region.
   const at = await page.evaluate(() => {

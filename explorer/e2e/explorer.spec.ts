@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { AREAS, HOTSPOTS, TOUR, type AreaId, type HotspotId } from '../src/content';
-import { enter, nonFinitePixels, watchErrors } from './helpers';
+import { cameraSettled, enter, nonFinitePixels, watchErrors } from './helpers';
 
 test('the intro invites you in, then the world comes alive', async ({ page }) => {
   const errors = watchErrors(page);
@@ -77,7 +77,7 @@ test('a first-time event gets explained', async ({ page }) => {
 
 test('hovering a thing explains what it is and what a click does', async ({ page }) => {
   await enter(page, '#heap');
-  await page.waitForTimeout(2500);
+  await cameraSettled(page);
   const at = await page.evaluate(() => {
     const { world, regionCenter, screenOf } = (window as any).__jvm;
     const free = world.sim.heap.regions.find((r: { role: string }) => r.role === 'free');

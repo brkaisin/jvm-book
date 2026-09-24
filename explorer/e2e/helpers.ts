@@ -14,6 +14,12 @@ export async function enter(page: Page, hash = '') {
   await expect(page.locator('body')).toHaveClass(/entered/);
 }
 
+/** Waits until the camera has finished flying to its target (positions are stable). */
+export async function cameraSettled(page: Page) {
+  await page.waitForFunction(() => !(window as any).__jvm.app.rig.flying, null, { timeout: 20_000 });
+  await page.waitForTimeout(300); // let damping settle
+}
+
 /**
  * Renders the scene into a float target and counts non-finite pixels: the
  * kind that bloom turns into spreading black squares.

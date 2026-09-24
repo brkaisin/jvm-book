@@ -6,8 +6,13 @@
 // step) takes over at once, while background commentary (a "what just
 // happened" card, a note about the JIT) waits for the current explanation to
 // finish instead of cutting it off.
+//
+// To sound like a person rather than a machine reading a page, it picks the
+// most natural voice the browser has, and says one sentence at a time with a
+// short breath in between, each with a slightly different pace and pitch.
 
-import { readingSeconds, speakable } from './speech';
+import { phrases, readingSeconds, speakable, type Phrase } from './speech';
+import { rankVoices } from './voices';
 
 export type Priority = 'user' | 'background';
 
@@ -26,12 +31,29 @@ export interface NarratorListener {
   end(): void;
   /** How many lines are waiting. */
   queued(n: number): void;
+  /** The voices on offer changed (they load asynchronously), or another was picked. */
+  voices?(voices: SpeechSynthesisVoice[], current: SpeechSynthesisVoice | null): void;
 }
-
-/** Voices that sound natural, best first; any English voice is the fallback. */
-const PREFERRED = [/Google UK English Male/i, /Daniel/i, /Microsoft (Ryan|Guy|Christopher)/i, /Alex/i, /Google US English/i, /Samantha/i];
 /** Background lines wait at most this many; older ones are dropped (they would be stale). */
 const MAX_QUEUE = 2;
+/** A calm, conversational pace: engines' default rate reads like a hurried announcement. */
+const RATE = 0.96;
+/** Small per-sentence changes of pace and pitch, so it never settles into a drone. */
+const LILT: [rate: number, pitch: number][] = [
+  [1, 1],
+  [1.03, 0.97],
+  [0.98, 1.02],
+  [1.02, 0.99],
+  [0.97, 1.01],
+];
+
+/** How long a speaker pauses after a sentence ending like this one. */
+export function breathAfter(sentence: string): number {
+  if (/[?!]$/.test(sentence)) return 380;
+  if (/:$/.test(sentence)) return 220;
+  if (/\.\.\.$/.test(sentence)) return 520;
+  return 320;
+}
 
 export class Narrator {
   private voice: SpeechSynthesisVoice | null = null;
@@ -46,15 +68,32 @@ export class Narrator {
   constructor(
     private readonly listener: NarratorListener,
     enabled = true,
+    /** Name of the voice the visitor picked last time, if any. */
+    private preferred: string | null = null,
   ) {
     this.on = enabled;
     if (!this.synth) return;
     const pick = () => {
-      const voices = this.synth!.getVoices().filter((v) => v.lang.startsWith('en'));
-      this.voice = PREFERRED.map((re) => voices.find((v) => re.test(v.name))).find(Boolean) ?? voices[0] ?? null;
+      const voices = this.voices;
+      this.voice = voices.find((v) => v.name === this.preferred) ?? voices[0] ?? null;
+      this.listener.voices?.(voices, this.voice);
     };
     pick();
     this.synth.addEventListener('voiceschanged', pick);
+  }
+
+  /** The English voices available, most natural first. */
+  get voices(): SpeechSynthesisVoice[] {
+    return this.synth ? rankVoices(this.synth.getVoices()) : [];
+  }
+
+  /** Speaks with another voice from now on. */
+  setVoice(name: string): void {
+    const v = this.voices.find((x) => x.name === name);
+    if (!v) return;
+    this.preferred = name;
+    this.voice = v;
+    this.listener.voices?.(this.voices, v);
   }
 
   get enabled(): boolean {
@@ -115,16 +154,33 @@ export class Narrator {
       this.timer = setTimeout(done, readingSeconds(line.text) * 1000);
       return;
     }
-    const u = new SpeechSynthesisUtterance(line.text);
+    this.sentence(line, phrases(line.text), 0, gen, interrupted, done);
+  }
+
+  /** Says the `i`-th sentence of `line`, then breathes and goes on with the next. */
+  private sentence(line: Line, parts: Phrase[], i: number, gen: number, interrupted: boolean, done: () => void): void {
+    const part = parts[i];
+    if (!part || !this.voice) return done();
+    const [rate, pitch] = LILT[i % LILT.length];
+    const u = new SpeechSynthesisUtterance(part.text);
     u.voice = this.voice;
     u.lang = this.voice.lang;
-    u.rate = 1.03;
-    u.pitch = 0.95;
-    u.onstart = () => gen === this.generation && this.listener.start(line, true, interrupted);
-    u.onboundary = (e) => gen === this.generation && this.listener.word(e.charIndex);
-    u.onend = done;
+    u.rate = RATE * rate;
+    u.pitch = pitch;
+    u.onstart = () => {
+      if (gen !== this.generation) return;
+      if (i === 0) this.listener.start(line, true, interrupted);
+      this.listener.word(part.offset);
+    };
+    // Some voices (Google's) never report word boundaries: the captions then move sentence by sentence.
+    u.onboundary = (e) => gen === this.generation && this.listener.word(part.offset + e.charIndex);
+    u.onend = () => {
+      if (gen !== this.generation) return;
+      const last = i === parts.length - 1;
+      this.timer = setTimeout(() => this.sentence(line, parts, i + 1, gen, interrupted, done), last ? 0 : breathAfter(part.text));
+    };
     u.onerror = done;
-    this.synth.speak(u);
+    this.synth!.speak(u);
   }
 
   private next(): void {

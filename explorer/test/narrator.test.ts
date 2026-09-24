@@ -10,7 +10,7 @@ class Captions implements NarratorListener {
     this.lines.push({ topic: line.topic, interrupted });
     this.current = line.topic;
   }
-  word() {}
+  word(_index: number) {}
   end() {
     this.current = null;
   }
@@ -77,5 +77,97 @@ describe('Narrator', () => {
     const n = new Narrator(c, false);
     n.say('Hello.', 'hi');
     expect(c.lines).toEqual([]);
+  });
+});
+
+/** A speech engine that says each utterance instantly when told to `finish()` it. */
+class FakeSynth extends EventTarget {
+  spoken: FakeUtterance[] = [];
+  current: FakeUtterance | null = null;
+  constructor(private readonly list: { name: string; lang: string }[]) {
+    super();
+  }
+  getVoices() {
+    return this.list;
+  }
+  speak(u: FakeUtterance) {
+    this.spoken.push(u);
+    this.current = u;
+    u.onstart?.();
+  }
+  cancel() {
+    this.current = null;
+  }
+  finish() {
+    const u = this.current;
+    this.current = null;
+    u?.onend?.();
+  }
+}
+
+class FakeUtterance {
+  voice: unknown = null;
+  lang = '';
+  rate = 1;
+  pitch = 1;
+  onstart?: () => void;
+  onend?: () => void;
+  onboundary?: (e: { charIndex: number }) => void;
+  onerror?: () => void;
+  constructor(readonly text: string) {}
+}
+
+describe('Narrator with a voice', () => {
+  let synth: FakeSynth;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    synth = new FakeSynth([
+      { name: 'eSpeak English', lang: 'en' },
+      { name: 'Microsoft Aria Online (Natural) - English (United States)', lang: 'en-US' },
+      { name: 'Daniel', lang: 'en-GB' },
+    ]);
+    vi.stubGlobal('speechSynthesis', synth);
+    vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('picks the most natural voice, unless the visitor chose another', () => {
+    const a = new Narrator(new Captions());
+    a.say('Hello.', 'hi');
+    expect((synth.spoken[0].voice as { name: string }).name).toMatch(/Aria/);
+    const b = new Narrator(new Captions(), true, 'Daniel');
+    b.say('Hello.', 'hi');
+    expect((synth.spoken[1].voice as { name: string }).name).toBe('Daniel');
+  });
+
+  it('says one sentence at a time, with a breath in between', () => {
+    const words: number[] = [];
+    const c = new Captions();
+    c.word = (i: number) => void words.push(i);
+    const n = new Narrator(c);
+    n.say('The heap is shared. Objects live there!', 'Heap');
+    expect(synth.spoken.map((u) => u.text)).toEqual(['The heap is shared.']);
+    synth.finish();
+    expect(synth.spoken).toHaveLength(1); // breathing
+    vi.advanceTimersByTime(400);
+    expect(synth.spoken.map((u) => u.text)).toEqual(['The heap is shared.', 'Objects live there!']);
+    expect(synth.spoken[0].rate).not.toBe(synth.spoken[1].rate);
+    expect(words).toEqual([0, 20]); // captions jump to each sentence even without word boundaries
+    expect(c.current).toBe('Heap');
+    synth.finish();
+    vi.advanceTimersByTime(0);
+    expect(c.current).toBeNull();
+  });
+
+  it('forgets the rest of a line when interrupted', () => {
+    const n = new Narrator(new Captions());
+    n.say('One. Two. Three.', 'count');
+    n.say('Something else.', 'other');
+    synth.finish();
+    vi.advanceTimersByTime(2_000);
+    expect(synth.spoken.map((u) => u.text)).toEqual(['One.', 'Something else.']);
   });
 });

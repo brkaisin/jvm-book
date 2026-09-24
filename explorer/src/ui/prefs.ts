@@ -19,3 +19,19 @@ export function savePref(key: string, value: boolean): void {
     // Not remembered, that's all.
   }
 }
+
+export function loadText(key: string): string | null {
+  try {
+    return localStorage.getItem(PREFIX + key);
+  } catch {
+    return null;
+  }
+}
+
+export function saveText(key: string, value: string): void {
+  try {
+    localStorage.setItem(PREFIX + key, value);
+  } catch {
+    // Not remembered, that's all.
+  }
+}

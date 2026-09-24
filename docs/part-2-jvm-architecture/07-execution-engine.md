@@ -70,39 +70,12 @@ The "tiers" are the possible states of a method:
 | 3    | C1, full profiling  | The usual step for warm methods                    |
 | 4    | C2, fully optimized | Hot methods                                        |
 
-The typical path is **0 → 3 → 4**: interpreted at first, compiled by C1 with profiling once it's warm (by default, around 200 invocations), then recompiled by C2 once it's really hot (thousands of invocations), using the profile collected in tier 3.
+The typical path is **0 → 3 → 4**: interpreted at first, compiled by C1 with profiling once it's warm (by default, around 200 invocations), then recompiled by C2 once it's really hot (thousands of invocations), using the profile collected in tier 3. Figure 7.1 shows this pipeline, and where the AOT cache plugs into it.
 
-```text
-┌─ AOT cache, from a training run ───────────────────────────────────────┐
-│ ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐ │
-│ │  Loaded + linked   │  │  Method profiles   │  │   Compiled code    │ │
-│ │      classes       │  │      Java 25+      │  │    proposed for    │ │
-│ │      Java 24+      │  │                    │  │      Java 28       │ │
-│ └─────────┬──────────┘  └─────────┬──────────┘  └─────────┬──────────┘ │
-└───────────┼───────────────────────┼───────────────────────┼────────────┘
-            ┆ skip loading          ┆ C2 starts sooner      ┆
-            ▼                       ┆                       ┆
-    ┌────────────────────────┐      ┆                       ┆
-    │  Tier 0: interpreter   │      ┆                       ┆
-╭╌╌▶│ counts calls and loops │      ┆                       ┆
-┆   └───────────┬────────────┘      ┆                       ┆
-┆               │ warm              ┆                       ┆
-┆               ▼                   ┆                       ┆
-┆   ┌────────────────────────┐      ┆                       ┆
-┆   │ Tier 3: C1 + profiling │      ┆                       ┆
-┆   │     records types      │      ┆                       ┆
-┆   │      and branches      │      ┆                       ┆
-┆   └───────────┬────────────┘      ┆                       ┆
-┆               │ hot               ┆                       ┆
-┆               ▼                   ┆                       ┆
-┆   ┌────────────────────────┐      ┆                       ┆
-┆   │       Tier 4: C2       │◀╌╌╌╌╌╯                       ┆
-┆   │      speculative,      │◀╌ native code at startup ╌╌╌╌╯
-┆   │    fully optimized     │
-┆   └───────────┬────────────┘
-┆               ┆
-╰╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╯ deoptimize
-```
+<figure class="fig">
+{{#include ../figures/07-tiered-aot.svg}}
+<figcaption><b>Figure 7.1</b> — A method climbs from the interpreter to C1 and then C2, falls back to the interpreter when a speculation fails, and the AOT cache lets it skip steps.</figcaption>
+</figure>
 
 The solid arrows are the classic JIT pipeline (trivial methods take a side exit to tier 1, not shown). The dashed arrows coming down from the cache are the shortcuts that Project Leyden's AOT cache adds, which we'll look at [below](#the-aot-cache-project-leyden).
 

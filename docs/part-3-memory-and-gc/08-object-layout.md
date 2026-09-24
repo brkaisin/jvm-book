@@ -17,42 +17,16 @@ The header is where things got interesting recently. HotSpot now has **two heade
 | **Legacy**                      | 12 bytes (96 bits)       | The only layout up to Java 23; still available with `-XX:-UseCompactObjectHeaders`                                 |
 | **Compact** (Project Lilliput)  | 8 bytes (64 bits)        | Experimental in 24 (JEP 450), product in 25 (JEP 519), <span class="since">Default in 27</span> (JEP 534)          |
 
-Here is the legacy layout, byte by byte:
+Figure 8.1 shows what this means for a real object: a `java.lang.Long`, which has a single 8-byte field.
 
-```text
-Legacy layout (-XX:-UseCompactObjectHeaders)
+<figure class="fig">
+{{#include ../figures/08-long-layouts.svg}}
+<figcaption><b>Figure 8.1</b> — A <code>java.lang.Long</code> in both header layouts, drawn to scale. Objects start on 8-byte boundaries (dashed lines).</figcaption>
+</figure>
 
-offset
-  0 ┌──────────────────────────────────────┐ ─┐
-    │ mark word                  8 bytes   │  │
-  8 ├──────────────────────────────────────┤  │ header: 12 bytes
-    │ compressed class pointer   4 bytes   │  │ (16 for arrays)
- 12 ├──────────────────────────────────────┤ ─┤
-    │ array length   4 bytes (arrays only) │  │
-    ├──────────────────────────────────────┤ ─┘
-    │ instance data (your fields)          │
-    ├──────────────────────────────────────┤
-    │ padding up to a multiple of 8        │
-    └──────────────────────────────────────┘
-```
+In the legacy layout the header takes 12 bytes: an 8-byte **mark word** plus a 4-byte **compressed class pointer**. A `long` must sit on an 8-byte boundary, so it can't start before offset 16, and 4 bytes are lost to padding. In the compact layout the class pointer lives *inside* the 8-byte header, so the value starts right at offset 8 and the whole object shrinks by a third.
 
-And here is the compact layout, the default since JDK 27. The class pointer has been squeezed *into* the mark word:
-
-```text
-Compact layout (default in JDK 27)
-
-offset
-  0 ┌──────────────────────────────────────┐ ─┐
-    │ header                     8 bytes   │  │ header: 8 bytes
-    │ (class id + hash + age + lock bits)  │  │ (12 for arrays)
-  8 ├──────────────────────────────────────┤ ─┤
-    │ array length   4 bytes (arrays only) │  │
-    ├──────────────────────────────────────┤ ─┘
-    │ instance data (your fields)          │
-    ├──────────────────────────────────────┤
-    │ padding up to a multiple of 8        │
-    └──────────────────────────────────────┘
-```
+Arrays add a 4-byte length field right after the header, in both layouts. Every other object follows the same recipe: header, then instance data (your fields, reordered by the JVM to pack well), then padding up to the next multiple of 8.
 
 Four bytes per object doesn't sound like much. But a typical Java or Scala heap is full of small objects (boxed numbers, tuples, `Option`s, list cells, map entries…), and for those four bytes can be 15–25% of the whole object. Let's look at each part in turn.
 

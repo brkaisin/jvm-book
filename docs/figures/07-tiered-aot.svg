@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 16 760 320" role="img" aria-labelledby="f7-title f7-desc">
+  <title id="f7-title">Tiered compilation and where the AOT cache plugs in</title>
+  <desc id="f7-desc">The classic pipeline runs left to right: tier 0, the interpreter, counts calls and loops; once a method is warm (around 200 calls) C1 compiles it with profiling at tier 3; once it is hot (thousands of calls) C2 recompiles it at tier 4 using the profile. A return arrow from tier 4 back to tier 0 shows deoptimization: when a speculative assumption breaks, execution resumes in the interpreter. Above the pipeline, the AOT cache written by a training run feeds three shortcuts, drawn as dashed arrows: loaded and linked classes (Java 24 and later) let tier 0 skip loading; method profiles (Java 25 and later) let C2 start sooner, bypassing the tier 3 profiling wait; compiled code (proposed for Java 28, drawn as a ghost box) would deliver native code to tier 4 at startup.</desc>
+  <defs>
+    <marker id="f7-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-ink"/>
+    </marker>
+    <marker id="f7-arrow-accent" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-accent"/>
+    </marker>
+    <marker id="f7-arrow-muted" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-muted"/>
+    </marker>
+    <marker id="f7-arrow-warm" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" class="fill-warm"/>
+    </marker>
+  </defs>
+  <!-- AOT cache -->
+  <rect x="24" y="24" width="712" height="112" class="rule"/>
+  <text x="40" y="48" class="t-title">AOT cache</text>
+  <text x="120" y="48" class="t-small t-muted">written by a training run</text>
+  <rect x="40" y="64" width="168" height="56" class="box-accent"/>
+  <text x="124" y="88" class="t-mid">Loaded + linked classes</text>
+  <text x="124" y="106" class="t-small t-muted t-mid">Java 24+</text>
+  <rect x="288" y="64" width="168" height="56" class="box-accent"/>
+  <text x="372" y="88" class="t-mid">Method profiles</text>
+  <text x="372" y="106" class="t-small t-muted t-mid">Java 25+</text>
+  <rect x="536" y="64" width="184" height="56" class="box-ghost"/>
+  <text x="628" y="88" class="t-mid">Compiled code</text>
+  <text x="628" y="106" class="t-small t-muted t-mid">proposed for Java 28</text>
+  <!-- cache shortcuts -->
+  <path d="M124 120 V208" class="line-accent dashed" marker-end="url(#f7-arrow-accent)"/>
+  <text x="134" y="172" class="t-small t-accent">skip loading</text>
+  <path d="M372 120 V168 H576 V208" class="line-accent dashed" marker-end="url(#f7-arrow-accent)"/>
+  <text x="474" y="160" class="t-small t-accent t-mid">C2 starts sooner</text>
+  <path d="M688 120 V208" class="line-muted dashed" marker-end="url(#f7-arrow-muted)"/>
+  <text x="678" y="182" class="t-small t-muted t-end">native code</text>
+  <text x="678" y="197" class="t-small t-muted t-end">at startup</text>
+  <!-- pipeline -->
+  <rect x="40" y="208" width="168" height="64" class="box"/>
+  <text x="124" y="236" class="t-mid">Tier 0: interpreter</text>
+  <text x="124" y="254" class="t-small t-muted t-mid">counts calls and loops</text>
+  <rect x="288" y="208" width="168" height="64" class="box"/>
+  <text x="372" y="236" class="t-mid">Tier 3: C1 + profiling</text>
+  <text x="372" y="254" class="t-small t-muted t-mid">records types, branches</text>
+  <rect x="536" y="208" width="184" height="64" class="box"/>
+  <text x="628" y="236" class="t-mid">Tier 4: C2</text>
+  <text x="628" y="254" class="t-small t-muted t-mid">speculative, fully optimized</text>
+  <path d="M208 240 H288" class="line" marker-end="url(#f7-arrow)"/>
+  <text x="248" y="232" class="t-mid">warm</text>
+  <text x="248" y="258" class="t-small t-muted t-mid">~200 calls</text>
+  <path d="M456 240 H536" class="line" marker-end="url(#f7-arrow)"/>
+  <text x="496" y="232" class="t-mid">hot</text>
+  <text x="496" y="258" class="t-small t-muted t-mid">thousands</text>
+  <!-- deoptimization -->
+  <path d="M628 272 V304 H124 V272" class="line-warm" marker-end="url(#f7-arrow-warm)"/>
+  <text x="376" y="296" class="t-warm t-mid">deoptimize</text>
+  <text x="376" y="324" class="t-small t-muted t-mid">an assumption broke: resume in the interpreter</text>
+</svg>

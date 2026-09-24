@@ -107,19 +107,12 @@ What went wrong:
 java -XX:+UseG1GC -jar myapp.jar    # the default; the flag is only needed to be explicit
 ```
 
-G1 uses a different heap layout: instead of contiguous young and old generations, the heap is divided into equal-sized **regions** (G1 aims for about 2,048 of them; by default each is 1–32 MB, a power of two):
+G1 uses a different heap layout: instead of contiguous young and old generations, the heap is divided into equal-sized **regions** (G1 aims for about 2,048 of them; by default each is 1–32 MB, a power of two). Figure 10.1 shows such a heap.
 
-```text
-┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
-│  E  │  E  │  S  │  O  │  O  │  H  │  H  │  E  │
-├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│  O  │  O  │  E  │  O  │     │  O  │  E  │  S  │
-├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│  O  │     │  O  │  E  │  O  │  O  │     │  O  │
-└─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
-
-E = Eden   S = Survivor   O = Old   H = Humongous   (blank) = Free
-```
+<figure class="fig">
+{{#include ../figures/10-g1-regions.svg}}
+<figcaption><b>Figure 10.1</b> — A G1 heap: every region has one role at a time, the roles are scattered rather than contiguous, and a collection takes only a chosen set of regions (outlined), never the whole heap.</figcaption>
+</figure>
 
 Key concepts:
 

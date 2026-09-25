@@ -1,29 +1,33 @@
 /* ===== Enter the JVM: UI around the 3D world =====
  *
- * The world is a dark, glowing model; everything around it is paper: notes,
- * index cards and tags pinned over the model, set in the book's serif, with
- * the odd handwritten annotation. Flat colours, printed ink, real shadows.
+ * The world is a dark, glowing model; the UI around it stays out of its way:
+ * solid, warm charcoal cards (no frosted glass, no glow, no gradients), set
+ * in the book's serif, with the odd handwritten note in the margin.
  */
 
 :root {
   --bg: #03050b;
 
-  /* Paper and ink */
-  --paper: #f3ede1;
-  --paper-2: #e9e1d0;
-  --paper-3: #ddd3be;
-  --ink: #26221c;
-  --ink-2: #4a4337;
-  --muted: #7a7061;
-  --rule: rgba(38, 34, 28, 0.2);
-  --rule-soft: rgba(38, 34, 28, 0.1);
-  --pen: #2c5a9c;
-  --warm: #b4541c;
+  /* Cards: warm charcoal, and cream ink on them */
+  --paper: #1b1a17;
+  --paper-2: #25231f;
+  --paper-3: #302d27;
+  --ink: #ece5d6;
+  --ink-2: #c9c0ae;
+  --muted: #948a78;
+  --rule: rgba(236, 229, 214, 0.16);
+  --rule-soft: rgba(236, 229, 214, 0.08);
+  --edge: rgba(236, 229, 214, 0.12);
+  --pen: #9dbbe4;
+  --warm: #e59a5c;
   --marker: #f4d86a;
-  --marker-soft: rgba(244, 216, 106, 0.45);
+  --marker-soft: rgba(244, 216, 106, 0.14);
+  /* Cream: the one light surface, for the main button of a card */
+  --cream: #efe7d6;
+  --on-cream: #1b1a17;
 
   /* Slate: code, consoles, subtitles */
-  --slate: #1d1b17;
+  --slate: #11100e;
   --slate-ink: #ece5d6;
   --slate-muted: #9d9483;
 
@@ -35,7 +39,7 @@
   --sans: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --shadow: 0 1px 1px rgba(0, 0, 0, 0.25), 0 10px 26px -6px rgba(0, 0, 0, 0.55);
+  --shadow: 0 1px 1px rgba(0, 0, 0, 0.4), 0 12px 28px -8px rgba(0, 0, 0, 0.7);
   --gutter: 16px;
 }
 
@@ -92,7 +96,7 @@ kbd {
 #lab {
   background: var(--paper);
   color: var(--ink);
-  border: 1px solid rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--edge);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
@@ -118,12 +122,12 @@ kbd {
   text-transform: none;
 }
 
-/* Area colours come from the glowing model; on paper they need to be printed darker. */
+/* Area colours come from the glowing model; as text, they are softened a little. */
 .chip,
 #map h3,
 .k,
 .ev b {
-  --c-ink: color-mix(in oklab, var(--c) 58%, var(--ink));
+  --c-ink: color-mix(in oklab, var(--c) 80%, var(--ink));
 }
 
 /* ---------------------------------------------------------------- top bar */
@@ -165,7 +169,7 @@ kbd {
 
 /* ---------------------------------------------------------------- 3D labels */
 
-/* Main labels are little paper tags; minor ones are chalk notes on the model. */
+/* Main labels are little tags; minor ones are chalk notes on the model. */
 .lbl {
   --c: #9fb6ff;
   display: flex;
@@ -173,9 +177,9 @@ kbd {
   gap: 6px;
   padding: 2px 9px 3px 7px;
   border-radius: 2px;
-  background: var(--paper);
+  background: rgba(27, 26, 23, 0.88);
   color: var(--ink);
-  border: 1px solid rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--edge);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   font-family: var(--sans);
   font-size: 13px;
@@ -192,7 +196,7 @@ kbd {
   height: 8px;
   border-radius: 50%;
   background: var(--c);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 .lbl.clickable {
@@ -203,6 +207,7 @@ kbd {
 .lbl.clickable:hover,
 .lbl.active {
   background: var(--marker);
+  color: var(--on-cream);
   transform: translateY(-1px) rotate(-1deg);
 }
 
@@ -264,7 +269,7 @@ kbd {
 .lbl.lab {
   --c: #ffd166;
   background: var(--marker);
-  color: var(--ink);
+  color: var(--on-cream);
 }
 
 .lbl.tag-bootstrap {
@@ -307,7 +312,7 @@ kbd {
   margin-top: -4px;
   border-radius: 1px;
   background: var(--c);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 .lbl.legend button:hover {
@@ -521,13 +526,13 @@ kbd {
 }
 
 .bytebar .hl {
-  background: color-mix(in srgb, var(--c) 25%, var(--paper));
-  border-color: color-mix(in srgb, var(--c) 60%, var(--ink));
+  background: color-mix(in srgb, var(--c) 22%, var(--paper));
+  border-color: color-mix(in srgb, var(--c) 55%, transparent);
 }
 
 .bytebar .hl2 {
   background: var(--marker-soft);
-  border-color: color-mix(in srgb, var(--marker) 50%, var(--ink));
+  border-color: color-mix(in srgb, var(--marker) 55%, transparent);
 }
 
 .bytecap {
@@ -543,6 +548,7 @@ kbd {
   padding: 10px 12px;
   border-radius: 3px;
   background: var(--slate);
+  border: 1px solid var(--rule-soft);
   font-family: var(--mono);
   font-size: 11.5px;
   line-height: 1.6;
@@ -609,7 +615,7 @@ kbd {
 .act {
   padding: 7px 13px 8px;
   border-radius: 3px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--rule);
   background: transparent;
   font-family: var(--sans);
   font-size: 14px;
@@ -622,12 +628,13 @@ kbd {
 }
 
 .act.primary {
-  background: var(--ink);
-  color: var(--paper);
+  border-color: var(--cream);
+  background: var(--cream);
+  color: var(--on-cream);
 }
 
 .act.primary:hover {
-  background: var(--ink-2);
+  background: #fff;
 }
 
 .act:active {
@@ -770,7 +777,7 @@ body:has(#panel.open) #hud {
   pointer-events: none;
 }
 
-/* The feed reads like a line printer: slips of paper, one per event. */
+/* The feed reads like a line printer: one slip per event. */
 .ev {
   --c: var(--pen);
   align-self: flex-start;
@@ -778,7 +785,7 @@ body:has(#panel.open) #hud {
   padding: 3px 10px 4px 8px;
   border-radius: 1px;
   border-left: 4px solid var(--c);
-  background: var(--paper);
+  background: rgba(27, 26, 23, 0.9);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   font-family: var(--mono);
   font-size: 11.5px;
@@ -836,18 +843,18 @@ body:has(#panel.open) #hud {
   transform: translate(-50%, 0);
   background: var(--paper);
   color: var(--ink);
-  border: 1px solid rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--edge);
   box-shadow: var(--shadow);
 }
 
 #banner.stw {
-  background: #e8f4fa;
-  color: #0d3a57;
+  background: #10232d;
+  color: #d4f1ff;
   border-bottom: 3px solid #7cc5e6;
 }
 
 #banner.concurrent {
-  color: #8f2a74;
+  color: #f6b8e6;
   border-bottom: 3px solid #e27ac7;
 }
 
@@ -947,16 +954,16 @@ body:has(#panel.open) #hud {
 .tour-row .next {
   width: auto;
   padding: 0 14px;
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
+  border-color: var(--cream);
+  background: var(--cream);
+  color: var(--on-cream);
   font-family: var(--sans);
   font-size: 14px;
   font-weight: 600;
 }
 
 .tour-row .next:hover {
-  background: var(--ink-2);
+  background: #fff;
 }
 
 .tour-row .end {
@@ -965,7 +972,8 @@ body:has(#panel.open) #hud {
 
 #tour.autoplay .play {
   background: var(--marker);
-  border-color: var(--ink);
+  border-color: var(--marker);
+  color: var(--on-cream);
 }
 
 .tour-row .count {
@@ -1144,9 +1152,9 @@ body.lab-open #feed {
 }
 
 .chip-btn.on {
-  color: var(--paper);
-  border-color: var(--ink);
-  background: var(--ink);
+  color: var(--on-cream);
+  border-color: var(--cream);
+  background: var(--cream);
 }
 
 .watch {
@@ -1172,6 +1180,7 @@ body.lab-open #feed {
   height: 260px;
   border-radius: 3px;
   background: var(--slate);
+  border: 1px solid var(--rule-soft);
   overflow: hidden;
   font-family: var(--mono);
   font-size: 12.5px;
@@ -1272,8 +1281,8 @@ body.lab-open #feed {
   padding: 5px 10px 6px;
   margin-bottom: 4px;
   border-radius: 2px;
-  border-left: 3px solid #c0392b;
-  background: rgba(192, 57, 43, 0.1);
+  border-left: 3px solid #e0604e;
+  background: rgba(240, 90, 70, 0.12);
   font-size: 14px;
   cursor: pointer;
 }
@@ -1297,7 +1306,7 @@ body.lab-open #feed {
 
 .speed input {
   width: 110px;
-  accent-color: var(--ink);
+  accent-color: var(--marker);
 }
 
 .speed-label {
@@ -1328,13 +1337,13 @@ body.lab-open #feed {
 }
 
 .lab-status .state.running {
-  background: #d6ecd9;
-  color: #1f6b35;
+  background: rgba(46, 230, 166, 0.16);
+  color: #7ee8bf;
 }
 
 .lab-status .state.crashed {
-  background: #f4d4cf;
-  color: #9a2a1d;
+  background: rgba(240, 90, 70, 0.18);
+  color: #f5a095;
 }
 
 .lab-status .state.finished {
@@ -1362,6 +1371,7 @@ body.lab-open #feed {
   list-style: none;
   border-radius: 3px;
   background: var(--slate);
+  border: 1px solid var(--rule-soft);
   font-family: var(--mono);
   font-size: 11.5px;
 }
@@ -1412,6 +1422,7 @@ body.lab-open #feed {
   padding: 8px;
   border-radius: 3px;
   background: var(--slate);
+  border: 1px solid var(--rule-soft);
   font-family: var(--mono);
   font-size: 11.5px;
   color: var(--slate-ink);
@@ -1503,7 +1514,8 @@ body.lab-open #feed {
   padding: 8px 10px;
   overflow: auto;
   border-radius: 3px;
-  background: #12110e;
+  background: #0c0b0a;
+  border: 1px solid var(--rule-soft);
   font-family: var(--mono);
   font-size: 12px;
   color: var(--slate-ink);
@@ -1721,7 +1733,7 @@ body.lab-open #narrator {
 
 /* ---------------------------------------------------------------- moments */
 
-/* A note taped over the model, slightly askew, as notes are. */
+/* A note pinned over the model, slightly askew, as notes are. */
 #moment {
   position: fixed;
   left: var(--gutter);
@@ -1735,21 +1747,6 @@ body.lab-open #narrator {
 
 #moment.open {
   transform: rotate(-0.8deg);
-}
-
-#moment::before {
-  content: '';
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  width: 84px;
-  height: 20px;
-  margin-left: -42px;
-  background: rgba(236, 226, 196, 0.72);
-  border-left: 1px dashed rgba(0, 0, 0, 0.1);
-  border-right: 1px dashed rgba(0, 0, 0, 0.1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  transform: rotate(2deg);
 }
 
 body:has(#moment.open) #feed {
@@ -1875,7 +1872,7 @@ body:has(#moment.open) #feed {
   height: 12px;
   border-radius: 50%;
   background: var(--c);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 .sw.square {
@@ -1892,7 +1889,7 @@ body:has(#moment.open) #feed {
   width: 18px;
   height: 4px;
   border-radius: 0;
-  background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--c) 60%, var(--ink)) 0 3px, transparent 3px 6px);
+  background: repeating-linear-gradient(90deg, var(--c) 0 3px, transparent 3px 6px);
   box-shadow: none;
 }
 
@@ -2027,15 +2024,15 @@ body.entered #intro {
 }
 
 .cta .primary {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--cream);
+  color: var(--on-cream);
   box-shadow:
     0 1px 1px rgba(0, 0, 0, 0.3),
     0 8px 22px -6px rgba(0, 0, 0, 0.7);
 }
 
 .cta .primary:hover {
-  background: #fffaf0;
+  background: #fff;
   transform: translateY(-1px);
 }
 
@@ -2105,8 +2102,8 @@ body.embed #embed-cta {
   z-index: 10;
   padding: 11px 22px 12px;
   border-radius: 3px;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--cream);
+  color: var(--on-cream);
   font-family: var(--sans);
   font-weight: 700;
   font-size: 16px;
@@ -2116,7 +2113,7 @@ body.embed #embed-cta {
 }
 
 body.embed #embed-cta:hover {
-  background: #fffaf0;
+  background: #fff;
 }
 
 @media (pointer: coarse) {

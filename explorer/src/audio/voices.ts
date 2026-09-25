@@ -2,7 +2,8 @@
 // voices that sound like a person (Edge's "Natural" ones, Apple's "Premium"
 // and "Enhanced" downloads, Google's), decent classic ones, and old
 // formant synthesisers and novelty voices that sound like a 1990s robot. We
-// rank them so the visitor hears the most human one they have.
+// rank them so the visitor hears the most human one they have, and prefer a
+// man's voice: the narrator is a calm male guide, as it always was.
 
 /** The part of a SpeechSynthesisVoice the ranking looks at. */
 export interface VoiceInfo {
@@ -20,8 +21,10 @@ const SCORES: [RegExp, number][] = [
   [/^Google (UK|US) English/i, 45],
   [/\b(Samantha|Daniel|Karen|Moira|Tessa|Serena|Ava|Allison|Susan|Tom|Evan|Nathan|Zoe|Jamie|Kate|Oliver|Arthur|Martha)\b/, 30],
   [/\bMicrosoft (Aria|Jenny|Guy|Ryan|Sonia|Libby|Natasha|William|Andrew|Emma|Brian|Ava|Christopher|Michelle)\b/, 30],
+  // A man's voice first, as long as it sounds human: a natural woman's voice still beats a robotic man's.
+  [/\bMale\b|\b(Guy|Ryan|Andrew|Brian|Christopher|Eric|Davis|Tony|Jason|Roger|Steffan|Thomas|Liam|Connor|Mitchell|William|Daniel|Tom|Alex|Evan|Nathan|Aaron|Oliver|Arthur|Gordon|Lee|Rishi|David|Mark|George)\b/, 140],
   // Robotic: old SAPI desktop voices, eSpeak, Apple's Eloquence and novelty voices.
-  [/\bMicrosoft (David|Zira|Mark|Hazel|George)\b/, -20],
+  [/\bMicrosoft (David|Zira|Mark|Hazel|George)\b/, -150],
   [/espeak|mbrola|festival|pico/i, -80],
   [/\b(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Fred|Junior|Ralph|Kathy|Grandma|Grandpa|Eddy|Flo|Reed|Rocko|Sandy|Shelley)\b/, -100],
 ];

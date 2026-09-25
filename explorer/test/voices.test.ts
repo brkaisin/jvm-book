@@ -4,6 +4,25 @@ import { rankVoices, voiceLabel, voiceScore } from '../src/audio/voices';
 const v = (name: string, lang = 'en-US') => ({ name, lang });
 
 describe('rankVoices', () => {
+  it('prefers a natural man, then a natural woman, then a robotic man', () => {
+    const voices = [
+      v('Microsoft David - English (United States)'),
+      v('Microsoft Aria Online (Natural) - English (United States)'),
+      v('Microsoft Guy Online (Natural) - English (United States)'),
+      v('Google UK English Female', 'en-GB'),
+      v('Google UK English Male', 'en-GB'),
+      v('Daniel', 'en-GB'),
+    ];
+    expect(rankVoices(voices).map((x) => x.name)).toEqual([
+      'Microsoft Guy Online (Natural) - English (United States)',
+      'Google UK English Male',
+      'Microsoft Aria Online (Natural) - English (United States)',
+      'Daniel',
+      'Google UK English Female',
+      'Microsoft David - English (United States)',
+    ]);
+  });
+
   it('puts neural and enhanced voices before classic ones, and robotic ones last', () => {
     const voices = [
       v('eSpeak English', 'en'),

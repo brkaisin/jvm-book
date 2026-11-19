@@ -70,9 +70,11 @@ export class Effects implements Part {
     this.sparks.update(dt);
     for (let i = this.ripples.length - 1; i >= 0; i--) {
       const r = this.ripples[i];
-      r.t += dt / 0.7;
-      r.sprite.scale.setScalar(r.size * (0.3 + r.t * 1.4));
-      (r.sprite.material as THREE.SpriteMaterial).opacity = Math.max(0, 1 - r.t);
+      r.t = Math.min(1, r.t + dt / 0.8);
+      // Fast out, slow settle: a ring on water rather than a growing circle.
+      const out = 1 - Math.pow(1 - r.t, 3);
+      r.sprite.scale.setScalar(r.size * (0.25 + out * 1.6));
+      (r.sprite.material as THREE.SpriteMaterial).opacity = (1 - r.t) * (1 - r.t);
       if (r.t >= 1) {
         this.scene.remove(r.sprite);
         r.sprite.material.dispose();

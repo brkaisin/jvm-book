@@ -34,7 +34,6 @@ test('the garbage collector collects when asked', async ({ page }) => {
 test('clicking a thing in the world opens it and runs its action', async ({ page }) => {
   await enter(page, '#heap');
   await cameraSettled(page);
-  const before = await page.locator('#feed .ev').count();
   // Click right in the middle of a free heap region.
   const at = await page.evaluate(() => {
     const { world, regionCenter, screenOf } = (window as any).__jvm;
@@ -42,13 +41,14 @@ test('clicking a thing in the world opens it and runs its action', async ({ page
     return screenOf(regionCenter(free.index));
   });
   await page.mouse.click(at.x, at.y);
-  await expect(page.locator('#feed')).toContainText('Allocated');
-  expect(await page.locator('#feed .ev').count()).toBeGreaterThan(before);
+  // The newest event comes first.
+  await expect(page.locator('#feed .ev').first()).toContainText('Allocated');
 });
 
 test('sound and narrator can be switched off, and stay off', async ({ page }) => {
   const errors = watchErrors(page);
   await enter(page);
+  await page.locator('#c-settings').click();
   await page.locator('#c-sound').click();
   await page.locator('#c-narrator').click();
   await expect(page.locator('#c-sound')).not.toHaveClass(/on/);
@@ -72,7 +72,8 @@ test('the narrator plays recorded clips, in the voice the visitor picks', async 
   await enter(page);
   await page.evaluate(() => (location.hash = 'heap'));
   await expect.poll(() => clips.some((c) => c.includes('/narration/charon/'))).toBe(true);
-  const picker = page.locator('#narrator select.voice');
+  await page.locator('#c-settings').click();
+  const picker = page.locator('#settings select.voice');
   await expect(picker.locator('option')).toHaveCount(3);
   await picker.selectOption('aoede');
   await expect.poll(() => clips.some((c) => c.includes('/narration/aoede/'))).toBe(true);

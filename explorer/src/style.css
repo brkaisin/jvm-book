@@ -82,6 +82,13 @@ kbd {
   pointer-events: none;
 }
 
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 55%, rgba(1, 2, 6, 0.55) 100%);
+}
+
 /* Every card is a sheet of paper. */
 .glass,
 #hud,
@@ -187,8 +194,15 @@ kbd {
   white-space: nowrap;
   transition:
     transform 0.15s,
-    background 0.15s;
+    background 0.15s,
+    opacity 0.35s ease;
   user-select: none;
+}
+
+/* Overlapping a more important label: step aside until there is room. */
+.lbl.hush {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .lbl i {
@@ -377,7 +391,7 @@ kbd {
   position: fixed;
   top: var(--gutter);
   right: var(--gutter);
-  bottom: 84px;
+  max-height: calc(100vh - var(--gutter) - 84px);
   width: min(410px, calc(100vw - 2 * var(--gutter)));
   padding: 22px 24px 18px;
   overflow-y: auto;
@@ -392,6 +406,72 @@ kbd {
 #panel.open {
   transform: none;
   opacity: 1;
+}
+
+/* The content settles in line by line, each time a new subject opens. */
+#panel.open .panel-body > * {
+  animation: settle 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+#panel.open .panel-body > :nth-child(2) {
+  animation-delay: 0.04s;
+}
+#panel.open .panel-body > :nth-child(3) {
+  animation-delay: 0.09s;
+}
+#panel.open .panel-body > :nth-child(4) {
+  animation-delay: 0.14s;
+}
+#panel.open .panel-body > :nth-child(n + 5) {
+  animation-delay: 0.19s;
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.deeper {
+  margin-top: 4px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.deeper summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 2px 4px;
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--hand);
+  font-size: 21px;
+  color: var(--pen);
+}
+
+.deeper summary::-webkit-details-marker {
+  display: none;
+}
+
+.deeper summary i {
+  font-style: normal;
+  font-family: var(--sans);
+  font-size: 15px;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.deeper summary:hover span {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.deeper[open] summary i {
+  transform: rotate(180deg);
+}
+
+.deeper[open] .deeper-body {
+  padding-top: 10px;
+  animation: settle 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .close {
@@ -708,6 +788,39 @@ body:has(#panel.open) #hud {
   pointer-events: none;
 }
 
+/* At rest the recorder is just a title and the heap bar; the numbers unfold on hover. */
+#hud {
+  width: 200px;
+  padding: 9px 12px 10px;
+  transition:
+    opacity 0.3s,
+    width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+#hud:is(:hover, :focus-within) {
+  width: 272px;
+}
+
+#hud .heapbar {
+  margin-bottom: 0;
+}
+
+#hud dl {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.25s,
+    margin 0.35s;
+}
+
+#hud:is(:hover, :focus-within) dl {
+  max-height: 120px;
+  margin-top: 10px;
+  opacity: 1;
+}
+
 .hud-title {
   display: flex;
   align-items: center;
@@ -809,7 +922,15 @@ body:has(#panel.open) #hud {
 }
 
 .ev.old {
-  opacity: 0.45;
+  opacity: 0.55;
+}
+
+.ev.gone {
+  opacity: 0;
+  transform: translateX(-12px);
+  transition:
+    opacity 0.8s,
+    transform 0.8s;
 }
 
 @keyframes slide-in {
@@ -832,7 +953,7 @@ body:has(#panel.open) #hud {
   font-family: var(--sans);
   font-size: 14px;
   font-weight: 700;
-  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
   pointer-events: none;
   white-space: nowrap;
 }
@@ -898,14 +1019,136 @@ body:has(#panel.open) #hud {
   color: var(--ink);
 }
 
-#controls #c-gc {
-  font-family: var(--mono);
-  font-size: 13px;
+#controls .sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 6px 4px;
+  background: var(--rule);
 }
 
-#controls :is(#c-labels, #c-sound, #c-narrator):not(.on) {
-  opacity: 0.45;
-  text-decoration: line-through;
+#controls button.on {
+  background: var(--paper-3);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- settings */
+
+#settings {
+  position: fixed;
+  z-index: 9;
+  width: 268px;
+  padding: 10px 12px 8px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-family: var(--sans);
+  font-size: 14px;
+  transform: translateY(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.2s;
+}
+
+#settings.open {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.settings-title {
+  margin-bottom: 4px;
+  font-family: var(--hand);
+  font-size: 20px;
+  color: var(--warm);
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 2px;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  text-align: left;
+}
+
+.setting kbd {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.setting .pill,
+.setting select {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 13px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.setting select {
+  max-width: 150px;
+  font-family: var(--sans);
+}
+
+.setting select[hidden] {
+  display: none;
+}
+
+.setting select:disabled {
+  opacity: 0.4;
+}
+
+.setting select option {
+  background: var(--slate);
+}
+
+.knob {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--paper-3);
+  transition: background 0.2s;
+}
+
+.knob::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    background 0.2s;
+}
+
+.switch.on .knob {
+  background: var(--marker);
+}
+
+.switch.on .knob::after {
+  transform: translateX(14px);
+  background: var(--on-cream);
 }
 
 /* ---------------------------------------------------------------- tour */
@@ -1548,10 +1791,12 @@ body.lab-open #feed {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(660px, calc(100vw - 2 * var(--gutter)));
-  padding: 9px 12px 10px;
-  border-radius: 3px;
-  background: rgba(22, 20, 17, 0.9);
+  width: max-content;
+  max-width: min(660px, calc(100vw - 2 * var(--gutter)));
+  padding: 6px 8px 6px 6px;
+  border-radius: 26px;
+  overflow: hidden;
+  background: rgba(22, 20, 17, 0.92);
   color: var(--slate-ink);
   transform: translate(-50%, 20px);
   opacity: 0;
@@ -1572,18 +1817,37 @@ body.touring #narrator {
 
 body:has(#panel.open) #narrator {
   left: calc((100vw - 442px) / 2);
-  width: min(660px, calc(100vw - 490px));
+  max-width: min(660px, calc(100vw - 490px));
+}
+
+/* When the words are already on screen (panel, tour card, note), no subtitles: just who is talking about what. */
+body:is(.touring, :has(#panel.open), :has(#moment.open)) #narrator .caption {
+  display: none;
+}
+
+#narrator .progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--marker);
+  opacity: 0;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition:
+    transform 0.15s linear,
+    opacity 0.3s;
+}
+
+#narrator.voiced .progress {
+  opacity: 0.7;
 }
 
 /* The narrator's bar takes the bottom: lift the card and the feed above it. */
 @media (min-width: 801px) {
   body:has(#narrator.open) :is(#moment, #feed) {
-    bottom: 160px;
-  }
-
-  /* During the tour the subtitles sit above the tour card: the note goes above them. */
-  body.touring:has(#narrator.open) #moment {
-    bottom: 290px;
+    bottom: 136px;
   }
 }
 
@@ -1596,7 +1860,7 @@ body:has(#panel.open) #narrator {
 
 body.lab-open #narrator {
   left: calc(592px + (100vw - 592px) / 2);
-  width: min(560px, calc(100vw - 640px));
+  max-width: min(560px, calc(100vw - 640px));
 }
 
 .avatar {
@@ -1609,6 +1873,11 @@ body.lab-open #narrator {
   height: 34px;
   border-radius: 50%;
   border: 1.5px solid var(--slate-muted);
+  transition: border-color 0.3s;
+}
+
+#narrator.talking .avatar {
+  border-color: var(--marker);
 }
 
 .avatar i {
@@ -1648,6 +1917,7 @@ body.lab-open #narrator {
 
 .topic {
   margin-bottom: 1px;
+  padding-right: 4px;
   font-size: 18px;
   color: var(--marker);
   white-space: nowrap;
@@ -1666,11 +1936,10 @@ body.lab-open #narrator {
   gap: 4px;
 }
 
-.narrator-actions button,
-.narrator-actions select {
+.narrator-actions button {
   pointer-events: auto;
   height: 28px;
-  border-radius: 3px;
+  border-radius: 50%;
   border: 1px solid #4a453d;
   background: transparent;
   color: var(--slate-ink);
@@ -1681,22 +1950,7 @@ body.lab-open #narrator {
   width: 28px;
 }
 
-.narrator-actions select {
-  max-width: 150px;
-  padding: 0 4px;
-  font-family: var(--sans);
-  font-size: 12.5px;
-}
-
-.narrator-actions select[hidden] {
-  display: none;
-}
-
-.narrator-actions select option {
-  background: var(--slate);
-}
-
-.narrator-actions :is(button, select):hover {
+.narrator-actions button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -1738,15 +1992,19 @@ body.lab-open #narrator {
   position: fixed;
   left: var(--gutter);
   bottom: 84px;
-  width: min(380px, calc(100vw - 2 * var(--gutter)));
-  padding: 14px 18px 14px;
+  width: min(340px, calc(100vw - 2 * var(--gutter)));
+  padding: 12px 16px 12px;
   z-index: 7;
   transform: translateX(calc(-100% - 40px)) rotate(-4deg);
-  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  opacity: 0;
+  transition:
+    transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.4s;
 }
 
 #moment.open {
   transform: rotate(-0.8deg);
+  opacity: 1;
 }
 
 body:has(#moment.open) #feed {
@@ -1759,7 +2017,7 @@ body:has(#moment.open) #feed {
 
 #moment h3 {
   margin: 2px 0 6px;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1.25;
 }
@@ -1769,8 +2027,8 @@ body:has(#moment.open) #feed {
 }
 
 #moment p {
-  margin: 0 0 12px;
-  font-size: 15px;
+  margin: 0 0 10px;
+  font-size: 14.5px;
   line-height: 1.55;
   color: var(--ink-2);
 }
@@ -2160,3 +2418,15 @@ body.embed #embed-cta:hover {
   }
 }
 
+
+/* ---------------------------------------------------------------- calm motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

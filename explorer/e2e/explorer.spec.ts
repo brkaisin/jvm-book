@@ -88,6 +88,33 @@ test('hovering a thing explains what it is and what a click does', async ({ page
   await expect(page.locator('#tip i')).toHaveText(/^Click: allocate 150 objects$/);
 });
 
+test('one explanation at a time: no note while a panel is open', async ({ page }) => {
+  await enter(page, '#heap');
+  await expect(page.locator('#panel')).toHaveClass(/open/);
+  // Plenty of first-time events happen meanwhile (class loads, compilations...).
+  await page.waitForTimeout(6000);
+  await expect(page.locator('#moment')).not.toHaveClass(/open/);
+});
+
+test('settings live in their own menu, which closes from outside', async ({ page }) => {
+  await enter(page);
+  await expect(page.locator('#settings')).not.toHaveClass(/open/);
+  await page.locator('#c-settings').click();
+  await expect(page.locator('#settings')).toHaveClass(/open/);
+  await page.locator('#c-gc').click();
+  await expect(page.locator('#c-gc')).toHaveText('ZGC');
+  await page.mouse.click(40, 300);
+  await expect(page.locator('#settings')).not.toHaveClass(/open/);
+});
+
+test('the panel keeps the extras folded until asked', async ({ page }) => {
+  await enter(page, '#heap');
+  await expect(page.locator('#panel .summary')).toBeVisible();
+  await expect(page.locator('#panel .links')).toBeHidden();
+  await page.locator('#panel .deeper summary').click();
+  await expect(page.locator('#panel .links')).toBeVisible();
+});
+
 test('the embed mode shows only the scene and a call to action', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/index.html?embed');

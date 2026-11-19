@@ -1,4 +1,7 @@
-// Shows the story's "what just happened?" moments, one at a time.
+// Shows the story's "what just happened?" moments, one at a time. The app
+// only lets a moment through when the screen is quiet (see `Story`), so there
+// is no queue: a note that cannot be shown now waits for the event to happen
+// again, when it is still worth explaining.
 
 import type { HotspotId } from '../content';
 import type { Moment } from '../story';
@@ -7,9 +10,10 @@ import { button, h } from './dom';
 const SHOW_SECONDS = 16;
 
 export class MomentCard {
-  private readonly queue: Moment[] = [];
   private current: Moment | null = null;
   private timer: number | undefined;
+  /** When the last note went away (performance.now() milliseconds). */
+  private closedAt = -Infinity;
 
   constructor(
     private readonly root: HTMLElement,
@@ -22,21 +26,18 @@ export class MomentCard {
     root.addEventListener('pointerleave', () => this.current && this.arm());
   }
 
-  push(m: Moment): void {
-    this.queue.push(m);
-    if (!this.current) this.next();
+  /** Whether a note is on screen. */
+  get busy(): boolean {
+    return this.current !== null;
   }
 
-  dismiss(): void {
-    this.root.classList.remove('open');
-    this.current = null;
-    window.clearTimeout(this.timer);
-    window.setTimeout(() => this.next(), 500);
+  /** Seconds since the last note went away. */
+  get quietSeconds(): number {
+    return (performance.now() - this.closedAt) / 1000;
   }
 
-  private next(): void {
-    const m = this.queue.shift();
-    if (!m || this.current) return;
+  show(m: Moment): void {
+    if (this.current) return;
     this.current = m;
     this.root.replaceChildren(
       h('div', { class: 'kicker' }, 'What just happened?'),
@@ -55,6 +56,14 @@ export class MomentCard {
     this.root.classList.add('open');
     this.onDisplay(m);
     this.arm();
+  }
+
+  dismiss(): void {
+    if (!this.current) return;
+    this.root.classList.remove('open');
+    this.current = null;
+    this.closedAt = performance.now();
+    window.clearTimeout(this.timer);
   }
 
   private arm(): void {

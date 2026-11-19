@@ -1,8 +1,12 @@
 // The side panel explaining one hotspot, with live numbers from the running
-// simulation, action buttons, and links into the book.
+// simulation, action buttons, and links into the book. It reads top-down from
+// the essentials (what you see, what it is, what you can try) to the live
+// numbers and the extras, which wait behind "Go deeper" so a first look stays short. Once a
+// visitor opens it, it stays open for the next hotspots.
 
 import { AREAS, HOTSPOTS, type ActionId, type Hotspot, type HotspotId } from '../content';
 import { button, h } from './dom';
+import { loadPref, savePref } from './prefs';
 
 export interface PanelHandlers {
   action(a: ActionId): void;
@@ -13,6 +17,7 @@ export interface PanelHandlers {
 export class Panel {
   private id: HotspotId | null = null;
   private liveEl: HTMLElement | null = null;
+  private deep = loadPref('deeper', false);
 
   constructor(
     private readonly root: HTMLElement,
@@ -35,22 +40,41 @@ export class Panel {
       h('h2', {}, hs.title),
       h('div', { class: 'see' }, h('b', {}, 'What you’re seeing'), h('span', { html: hs.see })),
       h('p', { class: 'summary', html: hs.summary }),
-      hs.extra ? h('div', { class: 'extra', html: hs.extra }) : null,
-      this.liveEl,
       this.actions(hs),
-      hs.fact ? h('p', { class: 'fact', html: `<b>Did you know?</b> ${hs.fact}` }) : null,
-      h(
-        'div',
-        { class: 'links' },
-        h('div', { class: 'links-title' }, 'Read more in the book'),
-        ...hs.links.map(([label, href]) => h('a', { href, target: '_top' }, h('span', {}, label), h('i', { html: '→' }))),
-      ),
+      this.liveEl,
+      this.deeper(hs),
     );
     this.root.replaceChildren(button('✕', () => this.on.close(), { class: 'close', 'aria-label': 'Close' }), body);
     this.root.style.setProperty('--c', area.color);
     this.root.classList.add('open');
     this.root.scrollTop = 0;
     this.refresh();
+  }
+
+  /** The details, the trivia and the book chapters, folded away until asked for. */
+  private deeper(hs: Hotspot): HTMLElement {
+    const details = h(
+      'details',
+      { class: 'deeper', open: this.deep },
+      h('summary', {}, h('span', {}, 'Go deeper'), h('i', { 'aria-hidden': 'true' }, '↓')),
+      h(
+        'div',
+        { class: 'deeper-body' },
+        hs.extra ? h('div', { class: 'extra', html: hs.extra }) : null,
+        hs.fact ? h('p', { class: 'fact', html: `<b>Did you know?</b> ${hs.fact}` }) : null,
+        h(
+          'div',
+          { class: 'links' },
+          h('div', { class: 'links-title' }, 'Read more in the book'),
+          ...hs.links.map(([label, href]) => h('a', { href, target: '_top' }, h('span', {}, label), h('i', { html: '→' }))),
+        ),
+      ),
+    );
+    details.addEventListener('toggle', () => {
+      this.deep = details.open;
+      savePref('deeper', this.deep);
+    });
+    return details;
   }
 
   /** The main "poke" action first, then the extras. */

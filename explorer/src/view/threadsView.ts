@@ -9,7 +9,7 @@ import type { JvmSim } from '../sim/jvm';
 import type { Tier } from '../sim/jit';
 import type { VirtualThread } from '../sim/threads';
 import { HUMONGOUS_REGIONS, REGION_COUNT } from '../sim/heap';
-import { C, Flow, approach, arc, commitInstances, edged, glowSprite, type Label, type Part, type Registry } from './fx';
+import { C, Flow, approach, arc, commitInstances, edged, glowSprite, glowTexture, type Label, type Part, type Registry } from './fx';
 import { HEAP_SIZE, LAYOUT, framePosition, regionCenter, towerBase } from './layout';
 
 export const TIER_COLOR: Record<Tier, THREE.Color> = { 0: C.interp, 3: C.c1, 4: C.c2 };
@@ -28,6 +28,9 @@ interface ShownFrame {
   popped: boolean;
 }
 
+/** Frozen frames: a cold steel blue, dim enough not to bloom into white blobs. */
+const FROZEN = new THREE.Color('#8fc6e3').multiplyScalar(0.3);
+
 export class ThreadsView implements Part {
   private readonly frames: THREE.InstancedMesh;
   private readonly frameOwner: { thread: number; depth: number }[] = [];
@@ -36,7 +39,7 @@ export class ThreadsView implements Part {
   private readonly orbs: THREE.InstancedMesh;
   private readonly orbPos = new Map<number, THREE.Vector3>();
   private readonly allocFlows: Flow[] = [];
-  private readonly frost: THREE.Sprite[] = [];
+  private readonly frost: THREE.Mesh[] = [];
   private freeze = 0;
 
   private readonly m = new THREE.Matrix4();
@@ -80,8 +83,14 @@ export class ThreadsView implements Part {
       rail.position.copy(base).setY(LAYOUT.towerBase + (cap * LAYOUT.framePitch) / 2);
       rail.position.x -= 1.55;
       scene.add(rail);
-      const frost = glowSprite(C.ice, 9, 0);
-      frost.position.copy(base).setY(4);
+      // Frost spreading on the floor around the tower: a flat glow, so it
+      // never sits between the camera and the rest of the scene.
+      const frost = new THREE.Mesh(
+        new THREE.PlaneGeometry(9, 9),
+        new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.ice, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }),
+      );
+      frost.rotation.x = -Math.PI / 2;
+      frost.position.copy(base).setY(0.15);
       scene.add(frost);
       this.frost.push(frost);
       this.pcLabels.push(this.reg.label('', base.clone().setY(0), { id: 'pc', minor: true, cls: 'pc' }));
@@ -149,7 +158,10 @@ export class ThreadsView implements Part {
       f.opacity = 1 - this.freeze;
       if (!safepoint) f.update(dt);
     }
-    for (const f of this.frost) (f.material as THREE.SpriteMaterial).opacity = this.freeze * 0.55;
+    for (const f of this.frost) {
+      (f.material as THREE.MeshBasicMaterial).opacity = this.freeze * 0.22;
+      f.scale.setScalar(0.6 + this.freeze * 0.4);
+    }
   }
 
   private updateFrames(dt: number) {
@@ -172,7 +184,7 @@ export class ThreadsView implements Part {
         framePosition(ti, depth, this.p);
         this.p.y += (1 - f.s) * 1.2;
         this.col.copy(TIER_COLOR[methods[f.method].tier]).multiplyScalar(depth === top ? 1.6 : 0.8);
-        this.col.lerp(C.ice, this.freeze * 0.75);
+        this.col.lerp(FROZEN, this.freeze * 0.75);
         this.m.compose(this.p, this.q, this.s.set(f.s, Math.max(0.01, f.s), f.s));
         this.frames.setMatrixAt(n, this.m);
         this.frames.setColorAt(n, this.col);

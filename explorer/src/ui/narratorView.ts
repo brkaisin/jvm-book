@@ -3,7 +3,7 @@
 // choice of voice, and buttons to skip or stop it.
 
 import type { Line, NarratorListener } from '../audio/narrator';
-import { voiceLabel } from '../audio/voices';
+import type { Voice } from '../audio/voices';
 import { button, h } from './dom';
 
 /** Start offsets of the sentences in `text`. */
@@ -16,7 +16,7 @@ export function sentenceStarts(text: string): number[] {
 export interface NarratorControls {
   skip(): void;
   stop(): void;
-  setVoice(name: string): void;
+  setVoice(id: string): void;
 }
 
 export class NarratorView implements NarratorListener {
@@ -45,12 +45,9 @@ export class NarratorView implements NarratorListener {
     this.voicePicker.addEventListener('change', () => this.controls?.setVoice(this.voicePicker.value));
   }
 
-  voices(voices: SpeechSynthesisVoice[], current: SpeechSynthesisVoice | null): void {
-    // A handful is plenty: past the first few, voices only get more robotic.
-    const shown = voices.slice(0, 8);
-    if (current && !shown.includes(current)) shown.push(current);
-    this.voicePicker.replaceChildren(...shown.map((v) => h('option', { value: v.name, selected: v === current }, voiceLabel(v))));
-    this.voicePicker.hidden = shown.length < 2;
+  voices(voices: readonly Voice[], current: Voice): void {
+    this.voicePicker.replaceChildren(...voices.map((v) => h('option', { value: v.id, selected: v === current }, v.label)));
+    this.voicePicker.hidden = voices.length < 2;
   }
 
   /** The buttons need the narrator, which needs this view: wired after both exist. */

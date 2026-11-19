@@ -1,64 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { rankVoices, voiceLabel, voiceScore } from '../src/audio/voices';
+import { allLines } from '../src/narration';
+import { speakable } from '../src/audio/speech';
+import { clipKey, clipUrl, VOICES } from '../src/audio/voices';
 
-const v = (name: string, lang = 'en-US') => ({ name, lang });
-
-describe('rankVoices', () => {
-  it('prefers a natural man, then a natural woman, then a robotic man', () => {
-    const voices = [
-      v('Microsoft David - English (United States)'),
-      v('Microsoft Aria Online (Natural) - English (United States)'),
-      v('Microsoft Guy Online (Natural) - English (United States)'),
-      v('Google UK English Female', 'en-GB'),
-      v('Google UK English Male', 'en-GB'),
-      v('Daniel', 'en-GB'),
-    ];
-    expect(rankVoices(voices).map((x) => x.name)).toEqual([
-      'Microsoft Guy Online (Natural) - English (United States)',
-      'Google UK English Male',
-      'Microsoft Aria Online (Natural) - English (United States)',
-      'Daniel',
-      'Google UK English Female',
-      'Microsoft David - English (United States)',
-    ]);
+describe('recorded narration', () => {
+  it('has a recording of every line the narrator can say, in every voice', () => {
+    const missing = allLines()
+      .map(speakable)
+      .filter((t) => VOICES.some((v) => !clipUrl(v, t)));
+    // Run `npm run narrate` after adding or editing a line.
+    expect(missing).toEqual([]);
   });
 
-  it('puts neural and enhanced voices before classic ones, and robotic ones last', () => {
-    const voices = [
-      v('eSpeak English', 'en'),
-      v('Microsoft David - English (United States)'),
-      v('Samantha'),
-      v('Zarvox'),
-      v('Microsoft Aria Online (Natural) - English (United States)'),
-      v('Google UK English Female', 'en-GB'),
-      v('Ava (Premium)'),
-    ];
-    expect(rankVoices(voices).map((x) => x.name)).toEqual([
-      'Microsoft Aria Online (Natural) - English (United States)',
-      'Ava (Premium)',
-      'Google UK English Female',
-      'Samantha',
-      'Microsoft David - English (United States)',
-      'eSpeak English',
-      'Zarvox',
-    ]);
+  it('names each line by a stable key', () => {
+    expect(clipKey('Hi! This is how I sound.')).toBe(clipKey('Hi! This is how I sound.'));
+    expect(clipKey('a')).not.toBe(clipKey('b'));
+    expect(clipKey('a')).toMatch(/^[0-9a-f]{8}$/);
   });
 
-  it('only keeps English voices, in the browser order when equally good', () => {
-    const voices = [v('Thomas', 'fr-FR'), v('Voice A', 'en-AU'), v('Voice B', 'en-AU'), v('Anna', 'de_DE')];
-    expect(rankVoices(voices).map((x) => x.name)).toEqual(['Voice A', 'Voice B']);
-    expect(voiceScore(v('Thomas', 'fr-FR'))).toBe(-Infinity);
-  });
-
-  it('accepts underscores in language tags (Android)', () => {
-    expect(rankVoices([v('English United States', 'en_US')])).toHaveLength(1);
-  });
-});
-
-describe('voiceLabel', () => {
-  it('keeps what tells voices apart', () => {
-    expect(voiceLabel(v('Microsoft Aria Online (Natural) - English (United States)'))).toBe('Aria (Natural) · en-US');
-    expect(voiceLabel(v('Google UK English Male', 'en-GB'))).toBe('UK English Male · en-GB');
-    expect(voiceLabel(v('Daniel', 'en_GB'))).toBe('Daniel · en-GB');
+  it('gives every line its own key', () => {
+    const texts = [...new Set(allLines().map(speakable))];
+    expect(new Set(texts.map(clipKey)).size).toBe(texts.length);
   });
 });

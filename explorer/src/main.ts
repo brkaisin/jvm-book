@@ -29,6 +29,7 @@ import { World } from './world';
 import { Sound, type Cue } from './audio/sound';
 import { Narrator } from './audio/narrator';
 import { NarratorView } from './ui/narratorView';
+import { CRASHES, LINES, hotspotLine, momentLine, sampleLine, tourLine } from './narration';
 import { loadPref, loadText, savePref, saveText } from './ui/prefs';
 import { AREAS } from './content';
 import { LabPanel } from './ui/labPanel';
@@ -64,7 +65,7 @@ class App {
     byId('tour'),
     (step) => {
       this.select(step.id, true);
-      this.narrator.say(`${step.say} ${HOTSPOTS[step.id].see}`, `Tour · ${HOTSPOTS[step.id].title}`);
+      this.narrator.say(tourLine(step), `Tour · ${HOTSPOTS[step.id].title}`);
       if (step.action) this.action(step.action);
     },
     () => document.body.classList.remove('touring'),
@@ -86,7 +87,7 @@ class App {
     (id) => this.select(id),
     (m) => {
       this.sound.play('moment');
-      this.narrator.say(`${/[.!?]$/.test(m.title) ? m.title : `${m.title}.`} ${m.text}`, `What just happened? ${m.title}`, 'background');
+      this.narrator.say(momentLine(m), `What just happened? ${m.title}`, 'background');
     },
   );
 
@@ -148,14 +149,14 @@ class App {
     this.narratorView.bind({
       skip: () => this.narrator.skip(),
       stop: () => this.narrator.stop(),
-      setVoice: (name) => {
-        this.narrator.setVoice(name);
-        saveText('voice', name);
-        this.narrator.say('Hi! This is how I sound.', 'Voice');
+      setVoice: (id) => {
+        this.narrator.setVoice(id);
+        saveText('voice', id);
+        this.narrator.say(LINES.voiceSample, 'Voice');
       },
     });
     this.lab = new LabPanel(byId('lab'), this.world.lab, {
-      started: (s) => this.narrator.say(s ? `Watch ${s.watch}.` : 'Running your code. Watch the gold tower and the heap.', `Code Lab · ${s?.title ?? 'your code'}`),
+      started: (s) => this.narrator.say(s ? sampleLine(s) : LINES.labRunning, `Code Lab · ${s?.title ?? 'your code'}`),
       close: () => this.toggleLab(false),
     });
     this.wireLab();
@@ -224,7 +225,7 @@ class App {
 
   select(id: HotspotId, fromTour = false) {
     if (!fromTour && this.tour.active) this.tour.interrupt();
-    if (!fromTour && id !== this.panel.current) this.narrator.say(HOTSPOTS[id].summary, HOTSPOTS[id].title);
+    if (!fromTour && id !== this.panel.current) this.narrator.say(hotspotLine(id), HOTSPOTS[id].title);
     this.world.onFocus(id);
     const anchor = this.world.reg.anchors.get(id)?.();
     if (anchor) this.rig.flyTo(anchor);
@@ -251,34 +252,18 @@ class App {
       const key = `${method}@${tier}`;
       if (said.has(key)) return;
       said.add(key);
-      this.narrator.say(
-        tier === 3
-          ? `Your method ${method} is warm: C1 just compiled it. Its frames turn green, and it runs about four times faster.`
-          : `${method} is hot: C2 recompiled it with full optimisations. Orange frames, and it flies.`,
-        `Code Lab · the JIT`,
-        'background',
-      );
+      this.narrator.say(tier === 3 ? LINES.labWarm : LINES.labHot, `Code Lab · the JIT · ${method}`, 'background');
     });
     lab.on('crashed', (e) => {
       this.sound.play('deopt');
       this.feed.push(`<b>${e.name}</b> at line ${e.line} in your code`, '#ff3b3b', 'lab');
-      const why: Record<string, string> = {
-        StackOverflowError: 'Every call pushed a new frame, and the stack ran out of room. The tower hit the ceiling.',
-        ArithmeticException: 'An integer division by zero: the JVM throws instead of returning a value.',
-        NullPointerException: 'The code used a reference that points to nothing.',
-        ArrayIndexOutOfBoundsException: 'The code read past the end of an array: the JVM checks every array access.',
-      };
-      this.narrator.say(`${e.name}! ${why[e.name] ?? e.message}`, 'Code Lab · your program crashed', 'background');
+      this.narrator.say(CRASHES[e.name] ?? `${e.name}! ${e.message}`, 'Code Lab · your program crashed', 'background');
     });
     lab.on('state', (s) => {
       if (s !== 'finished') return;
       this.sound.play('gcDone');
       const vm = lab.vm;
-      this.narrator.say(
-        `Your program finished after ${vm ? vm.executed.toLocaleString('en') : 'some'} bytecode instructions. Its objects are now garbage: the next collection will reclaim them.`,
-        'Code Lab · finished',
-        'background',
-      );
+      this.narrator.say(LINES.labFinished, 'Code Lab · finished', 'background');
       this.feed.push(`Your program finished: ${vm?.executed.toLocaleString('en')} instructions`, '#ffd166', 'lab');
     });
   }

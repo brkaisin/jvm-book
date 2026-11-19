@@ -61,33 +61,6 @@ export function speakable(html: string): string {
     .trim();
 }
 
-export interface Phrase {
-  text: string;
-  /** Where the phrase starts in the whole line, to keep captions in sync. */
-  offset: number;
-}
-
-/**
- * Splits a line into sentences, each spoken on its own. A person pauses
- * between sentences and starts the next one fresh; an engine reading one long
- * string runs them together in a single flat breath (and Chrome silently gives
- * up on utterances longer than about fifteen seconds).
- */
-export function phrases(text: string): Phrase[] {
-  const out: Phrase[] = [];
-  let start = 0;
-  const push = (end: number) => {
-    const t = text.slice(start, end).trim();
-    if (t) out.push({ text: t, offset: start + text.slice(start).search(/\S/) });
-  };
-  for (const m of text.matchAll(/[.!?]+\s+(?=\S)/g)) {
-    push(m.index + m[0].length);
-    start = m.index + m[0].length;
-  }
-  push(text.length);
-  return out;
-}
-
 /** Roughly how long reading `text` aloud takes, for captions without a voice. */
 export function readingSeconds(text: string): number {
   return Math.max(2.5, text.split(/\s+/).length * 0.36);

@@ -344,29 +344,62 @@ export function glowSprite(color: THREE.ColorRepresentation, scale: number, opac
 
 interface Spark {
   sprite: THREE.Sprite;
+  /** Fading copies following the head, like the tail of a comet. */
+  trail: THREE.Sprite[];
   curve: THREE.Curve<THREE.Vector3>;
   t: number;
   duration: number;
+  size: number;
   onDone?: () => void;
 }
 
-/** One-off glowing orbs flying along an arc: a compilation, a deopt, a mount. */
+interface Flash {
+  sprite: THREE.Sprite;
+  t: number;
+  size: number;
+}
+
+/** How many sprites make a spark's tail, and how far behind (in curve time) each one lags. */
+const TRAIL = 6;
+const TRAIL_LAG = 0.028;
+
+/**
+ * One-off glowing orbs flying along an arc: a compilation, a deopt, a mount.
+ * Each one swells as it leaves, trails a comet tail, and lands with a soft flash.
+ */
 export class Sparks {
   private readonly live: Spark[] = [];
+  private readonly flashes: Flash[] = [];
   private readonly pool: THREE.Sprite[] = [];
 
   constructor(private readonly parent: THREE.Object3D) {}
+
+  private sprite(color: THREE.ColorRepresentation, opacity: number): THREE.Sprite {
+    const s = this.pool.pop() ?? glowSprite('#fff', 1, 1);
+    const m = s.material as THREE.SpriteMaterial;
+    m.color.set(color);
+    m.opacity = opacity;
+    this.parent.add(s);
+    return s;
+  }
+
+  private release(s: THREE.Sprite): void {
+    this.parent.remove(s);
+    this.pool.push(s);
+  }
 
   launch(
     from: THREE.Vector3,
     to: THREE.Vector3,
     o: { color: THREE.ColorRepresentation; duration?: number; lift?: number; size?: number; onDone?: () => void },
   ): void {
-    const sprite = this.pool.pop() ?? glowSprite('#fff', 1, 1);
-    (sprite.material as THREE.SpriteMaterial).color.set(o.color);
-    sprite.scale.setScalar(o.size ?? 2.2);
-    this.parent.add(sprite);
-    this.live.push({ sprite, curve: arc(from, to, o.lift ?? 4), t: 0, duration: o.duration ?? 1, onDone: o.onDone });
+    const size = o.size ?? 2.2;
+    const sprite = this.sprite(o.color, 1);
+    sprite.scale.setScalar(0.01);
+    const trail = Array.from({ length: TRAIL }, (_, i) => this.sprite(o.color, 0.55 * (1 - (i + 1) / (TRAIL + 1))));
+    const curve = arc(from, to, o.lift ?? 4);
+    for (const s of [sprite, ...trail]) s.position.copy(from);
+    this.live.push({ sprite, trail, curve, t: 0, duration: o.duration ?? 1, size, onDone: o.onDone });
   }
 
   update(dt: number): void {
@@ -375,12 +408,34 @@ export class Sparks {
       s.t += dt / s.duration;
       if (s.t >= 1) {
         this.live.splice(i, 1);
-        this.parent.remove(s.sprite);
-        this.pool.push(s.sprite);
+        for (const t of s.trail) this.release(t);
+        // The head becomes the landing flash.
+        s.sprite.position.copy(s.curve.getPointAt(1));
+        this.flashes.push({ sprite: s.sprite, t: 0, size: s.size });
         s.onDone?.();
         continue;
       }
+      // Swell out of the source, shrink a little into the target.
+      const swell = Math.min(1, s.t * 6) * (1 - 0.25 * Math.max(0, s.t - 0.7) / 0.3);
+      s.sprite.scale.setScalar(s.size * swell);
       s.curve.getPointAt(easeInOut(s.t), s.sprite.position);
+      s.trail.forEach((p, j) => {
+        const u = Math.max(0, s.t - (j + 1) * TRAIL_LAG);
+        s.curve.getPointAt(easeInOut(u), p.position);
+        p.scale.setScalar(s.size * swell * (1 - (j + 1) / (TRAIL + 2)));
+      });
+    }
+    for (let i = this.flashes.length - 1; i >= 0; i--) {
+      const f = this.flashes[i];
+      f.t += dt / 0.45;
+      if (f.t >= 1) {
+        this.flashes.splice(i, 1);
+        this.release(f.sprite);
+        continue;
+      }
+      const out = 1 - Math.pow(1 - f.t, 3);
+      f.sprite.scale.setScalar(f.size * (1 + out * 1.8));
+      (f.sprite.material as THREE.SpriteMaterial).opacity = (1 - f.t) * (1 - f.t);
     }
   }
 }

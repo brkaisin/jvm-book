@@ -1,6 +1,9 @@
-// The narrator's face: a small avatar that moves while it talks, the topic it
-// is talking about, subtitles following the voice sentence by sentence, a
-// choice of voice, and buttons to skip or stop it.
+// The narrator's face: a small pill with an avatar that moves while it talks,
+// the topic it is talking about, a thin line showing how far along it is, and
+// buttons to skip or stop it. Subtitles follow the voice sentence by sentence,
+// but only when the words are not already written somewhere on screen (the
+// stylesheet hides them next to an open panel, tour card or note). The voice
+// picker lives in the settings menu: `voicePicker` is mounted there.
 
 import type { Line, NarratorListener } from '../audio/narrator';
 import type { Voice } from '../audio/voices';
@@ -24,7 +27,8 @@ export class NarratorView implements NarratorListener {
   private readonly spoken = h('span', { class: 'spoken' });
   private readonly rest = h('span', {});
   private readonly waiting = h('span', { class: 'waiting' });
-  private readonly voicePicker = h('select', { class: 'voice', title: 'Pick another voice', 'aria-label': 'Voice', hidden: true });
+  private readonly progress = h('i', { class: 'progress', 'aria-hidden': 'true' });
+  readonly voicePicker = h('select', { class: 'voice', title: 'Pick another voice', 'aria-label': 'Voice', hidden: true });
   private text = '';
   private starts: number[] = [0];
   private controls: NarratorControls | null = null;
@@ -37,10 +41,10 @@ export class NarratorView implements NarratorListener {
         'div',
         { class: 'narrator-actions' },
         this.waiting,
-        this.voicePicker,
         button('⏭', () => this.controls?.skip(), { title: 'Skip this explanation', 'aria-label': 'Skip' }),
         button('⏹', () => this.controls?.stop(), { title: 'Stop talking (turn the voice off with N)', 'aria-label': 'Stop' }),
       ),
+      this.progress,
     );
     this.voicePicker.addEventListener('change', () => this.controls?.setVoice(this.voicePicker.value));
   }
@@ -65,6 +69,8 @@ export class NarratorView implements NarratorListener {
       this.rest.textContent = '';
     }
     this.root.classList.add('open', 'talking');
+    this.root.classList.toggle('voiced', voiced);
+    this.progress.style.transform = 'scaleX(0)';
     // Make a change of subject obvious rather than a silent swap.
     this.root.classList.remove('switched');
     if (interrupted) {
@@ -77,6 +83,7 @@ export class NarratorView implements NarratorListener {
     // Show only the current sentence; what has been said so far is brighter.
     let s = 0;
     while (s + 1 < this.starts.length && this.starts[s + 1] <= index) s++;
+    if (this.text) this.progress.style.transform = `scaleX(${Math.min(1, index / this.text.length).toFixed(3)})`;
     const from = this.starts[s];
     const to = this.starts[s + 1] ?? this.text.length;
     const wordEnd = this.text.indexOf(' ', index + 1);

@@ -8,7 +8,9 @@ import { formatBytes } from '../format';
 import { h } from './dom';
 
 const ROLES: readonly RegionRole[] = ['eden', 'survivor', 'old', 'humongous', 'free'];
-const FEED_MAX = 6;
+const FEED_MAX = 4;
+/** Events fade away after this long: the feed is a ticker, not a log. */
+const FEED_SECONDS = 9;
 
 export class Hud {
   private readonly bar = h('div', { class: 'heapbar' });
@@ -48,6 +50,8 @@ export class Feed {
     line.addEventListener('click', () => this.onOpen(id));
     this.root.prepend(line);
     while (this.root.children.length > FEED_MAX) this.root.lastElementChild!.remove();
-    window.setTimeout(() => line.classList.add('old'), 6000);
+    window.setTimeout(() => line.classList.add('old'), 4000);
+    window.setTimeout(() => line.classList.add('gone'), FEED_SECONDS * 1000);
+    window.setTimeout(() => line.remove(), FEED_SECONDS * 1000 + 800);
   }
 }

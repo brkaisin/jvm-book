@@ -66,6 +66,18 @@ test('the narrator captions what it explains', async ({ page }) => {
   await expect(page.locator('#narrator .caption')).toContainText('C two');
 });
 
+test('the narrator plays recorded clips, in the voice the visitor picks', async ({ page }) => {
+  const clips: string[] = [];
+  page.on('response', (r) => r.url().includes('/narration/') && r.ok() && clips.push(new URL(r.url()).pathname));
+  await enter(page);
+  await page.evaluate(() => (location.hash = 'heap'));
+  await expect.poll(() => clips.some((c) => c.includes('/narration/charon/'))).toBe(true);
+  const picker = page.locator('#narrator select.voice');
+  await expect(picker.locator('option')).toHaveCount(3);
+  await picker.selectOption('aoede');
+  await expect.poll(() => clips.some((c) => c.includes('/narration/aoede/'))).toBe(true);
+});
+
 test('the narrator shows its topic and can be stopped', async ({ page }) => {
   await enter(page);
   await page.evaluate(() => (location.hash = 'heap'));

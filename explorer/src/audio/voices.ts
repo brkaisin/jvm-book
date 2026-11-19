@@ -1,57 +1,43 @@
-// Which of the browser's voices to speak with. Browsers ship a mix: neural
-// voices that sound like a person (Edge's "Natural" ones, Apple's "Premium"
-// and "Enhanced" downloads, Google's), decent classic ones, and old
-// formant synthesisers and novelty voices that sound like a 1990s robot. We
-// rank them so the visitor hears the most human one they have, and prefer a
-// man's voice: the narrator is a calm male guide, as it always was.
+// The narrator's voices. Browsers' built-in speech synthesis sounds robotic on
+// most machines, so every line is recorded ahead of time with neural voices
+// (through Speko, by scripts/narrate.mjs) and shipped as small audio clips.
 
-/** The part of a SpeechSynthesisVoice the ranking looks at. */
-export interface VoiceInfo {
-  name: string;
-  lang: string;
+import clips from './clips.json';
+
+export interface Voice {
+  /** Folder of its clips, and the name saved in the visitor's preferences. */
+  id: string;
+  label: string;
+  /** How scripts/narrate.mjs asks Speko for it. */
+  speko: { provider: string; voice: string };
 }
 
-const SCORES: [RegExp, number][] = [
-  // Neural voices: by far the most natural.
-  [/\b(natural|neural)\b/i, 100],
-  [/\(premium\)/i, 90],
-  [/\(enhanced\)/i, 70],
-  [/\bonline\b/i, 40],
-  // Good classic voices.
-  [/^Google (UK|US) English/i, 45],
-  [/\b(Samantha|Daniel|Karen|Moira|Tessa|Serena|Ava|Allison|Susan|Tom|Evan|Nathan|Zoe|Jamie|Kate|Oliver|Arthur|Martha)\b/, 30],
-  [/\bMicrosoft (Aria|Jenny|Guy|Ryan|Sonia|Libby|Natasha|William|Andrew|Emma|Brian|Ava|Christopher|Michelle)\b/, 30],
-  // A man's voice first, as long as it sounds human: a natural woman's voice still beats a robotic man's.
-  [/\bMale\b|\b(Guy|Ryan|Andrew|Brian|Christopher|Eric|Davis|Tony|Jason|Roger|Steffan|Thomas|Liam|Connor|Mitchell|William|Daniel|Tom|Alex|Evan|Nathan|Aaron|Oliver|Arthur|Gordon|Lee|Rishi|David|Mark|George)\b/, 140],
-  // Robotic: old SAPI desktop voices, eSpeak, Apple's Eloquence and novelty voices.
-  [/\bMicrosoft (David|Zira|Mark|Hazel|George)\b/, -150],
-  [/espeak|mbrola|festival|pico/i, -80],
-  [/\b(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Fred|Junior|Ralph|Kathy|Grandma|Grandpa|Eddy|Flo|Reed|Rocko|Sandy|Shelley)\b/, -100],
+export const VOICES: readonly Voice[] = [
+  { id: 'charon', label: 'Charon · calm, deep', speko: { provider: 'google-tts:gemini-3.8-flash-lite-tts', voice: 'Charon' } },
+  { id: 'draco', label: 'Draco · British', speko: { provider: 'deepgram:aura-2', voice: 'aura-2-draco-en' } },
+  { id: 'aoede', label: 'Aoede · warm, female', speko: { provider: 'google-tts:gemini-3.8-flash-lite-tts', voice: 'Aoede' } },
 ];
 
-/** How natural a voice probably sounds; higher is better. Only English voices count. */
-export function voiceScore(v: VoiceInfo): number {
-  if (!/^en\b/i.test(v.lang.replace('_', '-'))) return -Infinity;
-  let score = /^en-(GB|US)$/i.test(v.lang.replace('_', '-')) ? 5 : 0;
-  for (const [re, s] of SCORES) if (re.test(v.name)) score += s;
-  return score;
+export const DEFAULT_VOICE = VOICES[0];
+
+export function voiceById(id: string | null): Voice {
+  return VOICES.find((v) => v.id === id) ?? DEFAULT_VOICE;
 }
 
-/** English voices, most natural first (ties keep the browser's order). */
-export function rankVoices<V extends VoiceInfo>(voices: readonly V[]): V[] {
-  return voices
-    .map((v, i) => ({ v, i, s: voiceScore(v) }))
-    .filter((x) => x.s > -Infinity)
-    .sort((a, b) => b.s - a.s || a.i - b.i)
-    .map((x) => x.v);
+/** A short, stable name for a spoken text (FNV-1a), used as its clip's file name. */
+export function clipKey(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-/** A short, readable name for a voice picker: "Microsoft Aria Online (Natural) - English (United States)" is "Aria (Natural)". */
-export function voiceLabel(v: VoiceInfo): string {
-  const name = v.name
-    .replace(/\s+-\s+.*$/, '')
-    .replace(/^(Microsoft|Google|Apple)\s+/, '')
-    .replace(/\s+Online\b/, '')
-    .trim();
-  return `${name} · ${v.lang.replace('_', '-')}`;
+const recorded = new Set<string>(clips.keys);
+
+/** Where the recording of `text` is, or null when it was never recorded. */
+export function clipUrl(voice: Voice, text: string): string | null {
+  const key = clipKey(text);
+  return recorded.has(key) ? `${import.meta.env.BASE_URL}narration/${voice.id}/${key}.${clips.format}` : null;
 }

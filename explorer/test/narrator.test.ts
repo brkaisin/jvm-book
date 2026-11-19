@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Narrator, type Line, type NarratorListener } from '../src/audio/narrator';
+import { clipUrl, voiceById, VOICES } from '../src/audio/voices';
 
 /** Records what the captions would show. (No speech engine in Node: captions only, timed.) */
 class Captions implements NarratorListener {
@@ -80,94 +81,86 @@ describe('Narrator', () => {
   });
 });
 
-/** A speech engine that says each utterance instantly when told to `finish()` it. */
-class FakeSynth extends EventTarget {
-  spoken: FakeUtterance[] = [];
-  current: FakeUtterance | null = null;
-  constructor(private readonly list: { name: string; lang: string }[]) {
+/** Just enough of an audio element: plays when told to, ends when the test says so. */
+class FakeAudio extends EventTarget {
+  static all: FakeAudio[] = [];
+  static refuse = false;
+  currentTime = 0;
+  duration = 4;
+  paused = true;
+  constructor(readonly src: string) {
     super();
+    FakeAudio.all.push(this);
   }
-  getVoices() {
-    return this.list;
+  play() {
+    if (FakeAudio.refuse) return Promise.reject(new Error('NotAllowedError'));
+    this.paused = false;
+    this.dispatchEvent(new Event('playing'));
+    return Promise.resolve();
   }
-  speak(u: FakeUtterance) {
-    this.spoken.push(u);
-    this.current = u;
-    u.onstart?.();
+  pause() {
+    this.paused = true;
   }
-  cancel() {
-    this.current = null;
-  }
+  removeAttribute() {}
   finish() {
-    const u = this.current;
-    this.current = null;
-    u?.onend?.();
+    this.dispatchEvent(new Event('ended'));
   }
 }
 
-class FakeUtterance {
-  voice: unknown = null;
-  lang = '';
-  rate = 1;
-  pitch = 1;
-  onstart?: () => void;
-  onend?: () => void;
-  onboundary?: (e: { charIndex: number }) => void;
-  onerror?: () => void;
-  constructor(readonly text: string) {}
-}
+const RECORDED = 'Hi! This is how I sound.';
 
-describe('Narrator with a voice', () => {
-  let synth: FakeSynth;
+describe('Narrator with recorded voices', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    synth = new FakeSynth([
-      { name: 'eSpeak English', lang: 'en' },
-      { name: 'Microsoft Aria Online (Natural) - English (United States)', lang: 'en-US' },
-      { name: 'Daniel', lang: 'en-GB' },
-    ]);
-    vi.stubGlobal('speechSynthesis', synth);
-    vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+    FakeAudio.all = [];
+    FakeAudio.refuse = false;
+    vi.stubGlobal('Audio', FakeAudio);
   });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
-  it('picks the most natural voice, unless the visitor chose another', () => {
-    const a = new Narrator(new Captions());
-    a.say('Hello.', 'hi');
-    expect((synth.spoken[0].voice as { name: string }).name).toMatch(/Aria/);
-    const b = new Narrator(new Captions(), true, 'Daniel');
-    b.say('Hello.', 'hi');
-    expect((synth.spoken[1].voice as { name: string }).name).toBe('Daniel');
-  });
-
-  it('says one sentence at a time, with a breath in between', () => {
+  it('plays the recording in the chosen voice, and follows it with the captions', () => {
     const words: number[] = [];
     const c = new Captions();
     c.word = (i: number) => void words.push(i);
-    const n = new Narrator(c);
-    n.say('The heap is shared. Objects live there!', 'Heap');
-    expect(synth.spoken.map((u) => u.text)).toEqual(['The heap is shared.']);
-    synth.finish();
-    expect(synth.spoken).toHaveLength(1); // breathing
-    vi.advanceTimersByTime(400);
-    expect(synth.spoken.map((u) => u.text)).toEqual(['The heap is shared.', 'Objects live there!']);
-    expect(synth.spoken[0].rate).not.toBe(synth.spoken[1].rate);
-    expect(words).toEqual([0, 20]); // captions jump to each sentence even without word boundaries
-    expect(c.current).toBe('Heap');
-    synth.finish();
-    vi.advanceTimersByTime(0);
+    const n = new Narrator(c, true, 'aoede');
+    n.say(RECORDED, 'Voice');
+    expect(FakeAudio.all).toHaveLength(1);
+    expect(FakeAudio.all[0].src).toBe(clipUrl(voiceById('aoede'), RECORDED));
+    FakeAudio.all[0].currentTime = 2;
+    vi.advanceTimersByTime(200);
+    expect(words.at(-1)).toBe(Math.floor(RECORDED.length / 2));
+    FakeAudio.all[0].finish();
     expect(c.current).toBeNull();
   });
 
-  it('forgets the rest of a line when interrupted', () => {
+  it('falls back to the default voice for an unknown preference', () => {
+    expect(new Narrator(new Captions(), true, 'Microsoft David').current).toBe(VOICES[0]);
+  });
+
+  it('shows captions alone for a line that was never recorded', () => {
+    const c = new Captions();
+    new Narrator(c).say('A line nobody recorded.', 'x');
+    expect(FakeAudio.all).toHaveLength(0);
+    expect(c.current).toBe('x');
+  });
+
+  it('shows captions alone when the browser refuses to play', async () => {
+    FakeAudio.refuse = true;
+    const c = new Captions();
+    new Narrator(c).say(RECORDED, 'Voice');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.current).toBe('Voice');
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(c.current).toBeNull();
+  });
+
+  it('silences the current recording when interrupted', () => {
     const n = new Narrator(new Captions());
-    n.say('One. Two. Three.', 'count');
-    n.say('Something else.', 'other');
-    synth.finish();
-    vi.advanceTimersByTime(2_000);
-    expect(synth.spoken.map((u) => u.text)).toEqual(['One.', 'Something else.']);
+    n.say(RECORDED, 'one');
+    n.say(RECORDED, 'two');
+    expect(FakeAudio.all.map((a) => a.paused)).toEqual([true, false]);
   });
 });

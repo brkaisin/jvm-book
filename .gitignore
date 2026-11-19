@@ -6,3 +6,6 @@
 /docs/explorer/
 /explorer/test-results/
 /explorer/playwright-report/
+
+# Speko key for scripts/narrate.mjs
+/explorer/.env.local

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HOTSPOTS } from '../src/content';
 import { MOMENTS } from '../src/story';
-import { phrases, readingSeconds, speakable } from '../src/audio/speech';
+import { readingSeconds, speakable } from '../src/audio/speech';
 
 describe('speakable', () => {
   it('strips markup and decodes entities', () => {
@@ -34,19 +34,5 @@ describe('speakable', () => {
   it('estimates reading time from the number of words', () => {
     expect(readingSeconds('one two')).toBe(2.5);
     expect(readingSeconds(new Array(100).fill('word').join(' '))).toBeCloseTo(36);
-  });
-});
-
-describe('phrases', () => {
-  it('splits a line into sentences, remembering where each starts', () => {
-    const t = 'The heap. It holds objects! Really? Yes: all of them.';
-    const p = phrases(t);
-    expect(p.map((x) => x.text)).toEqual(['The heap.', 'It holds objects!', 'Really?', 'Yes: all of them.']);
-    for (const x of p) expect(t.slice(x.offset, x.offset + x.text.length)).toBe(x.text);
-  });
-
-  it('keeps decimals and dotted names in one sentence', () => {
-    expect(phrases('Version 1.2 of java dot base is out.').length).toBe(1);
-    expect(phrases('Clojure... The JVM never sees it.').map((x) => x.text)).toEqual(['Clojure...', 'The JVM never sees it.']);
   });
 });

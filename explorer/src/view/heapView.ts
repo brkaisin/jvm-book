@@ -27,6 +27,8 @@ export const ROLE_HOTSPOT: Record<RegionRole, HotspotId> = {
 
 const MAX_OBJECTS = REGION_COUNT * REGION_SLOTS;
 const GC_COLOR = new THREE.Color('#c8f7ff');
+/** The drone's colours: G1 is ice blue, ZGC magenta. */
+const DRONE_COLOR = { G1: new THREE.Color('#38d4ff'), ZGC: new THREE.Color('#ff5fd2') } as const;
 
 export class HeapView implements Part {
   private readonly tiles: THREE.InstancedMesh;
@@ -35,6 +37,12 @@ export class HeapView implements Part {
   private readonly instanceObj: (HeapObject | null)[] = new Array(MAX_OBJECTS).fill(null);
   private readonly drone = new THREE.Group();
   private readonly droneRing: THREE.Mesh;
+  /** Everything on the drone that takes the collector's colour. */
+  private readonly droneTinted: THREE.Material[] = [];
+  private readonly scanners = new THREE.Group();
+  private readonly cone: THREE.Mesh;
+  private droneBusy = 0;
+  private spinCore!: THREE.Mesh;
   private readonly sweep: THREE.Mesh;
   private readonly beam: THREE.Line;
   private readonly marker: THREE.Sprite;
@@ -82,6 +90,7 @@ export class HeapView implements Part {
 
     scene.add(this.buildHumongous());
     this.droneRing = this.buildDrone();
+    this.cone = this.buildCone();
     this.sweep = this.buildSweep(scene);
 
     this.beam = new THREE.Line(
@@ -185,13 +194,29 @@ export class HeapView implements Part {
     else if (marking) target.set(sweepX, 7, LAYOUT.heap.z);
     else target.set(LAYOUT.heap.x, 8, LAYOUT.heap.z);
     this.drone.position.lerp(target, 1 - Math.exp(-5 * dt));
-    this.droneRing.rotation.z += dt * (collecting ? 6 : 0.8);
+    this.droneBusy = THREE.MathUtils.lerp(this.droneBusy, collecting ? 1 : 0, 1 - Math.exp(-4 * dt));
+    const busy = this.droneBusy;
+    this.droneRing.rotation.z += dt * (0.6 + busy * 4);
+    this.scanners.rotation.y -= dt * (0.9 + busy * 5);
+    this.spinCore.rotation.y += dt * (1.2 + busy * 3);
+    this.spinCore.rotation.x += dt * 0.5;
+    // A slow tilt while idle, level and steady while it works.
+    this.drone.rotation.x = Math.sin(time * 0.7) * 0.12 * (1 - busy);
+    this.drone.rotation.z = Math.cos(time * 0.5) * 0.12 * (1 - busy);
     this.sweep.visible = marking;
     this.sweep.position.set(sweepX, 2.2, LAYOUT.heap.z);
-    const zgc = this.sim.collector === 'ZGC';
-    const color = zgc ? '#ff7ae0' : '#c8f7ff';
-    (this.droneRing.material as THREE.MeshStandardMaterial).emissive.set(color);
-    (this.sweep.material as THREE.MeshBasicMaterial).color.set(color);
+    const color = DRONE_COLOR[this.sim.collector];
+    for (const m of this.droneTinted) ((m as THREE.MeshStandardMaterial).emissive ?? (m as THREE.MeshBasicMaterial).color).copy(color);
+    (this.sweep.material as THREE.MeshBasicMaterial).color.copy(color);
+    // The scan beam: a cone of light from the drone down to the heap, only while collecting.
+    const cone = (this.cone.material as THREE.ShaderMaterial).uniforms;
+    cone.color.value.copy(color);
+    cone.opacity.value = busy;
+    cone.time.value = time;
+    this.cone.visible = busy > 0.02;
+    const h = Math.max(0.1, this.drone.position.y - 0.4);
+    this.cone.scale.set(1 + busy * 0.4, h, 1 + busy * 0.4);
+    this.cone.position.copy(this.drone.position).setY(this.drone.position.y - h / 2 - 0.3);
   }
 
   private updateSelection(time: number) {
@@ -251,18 +276,55 @@ export class HeapView implements Part {
     return big;
   }
 
+  /**
+   * The garbage collector: a dark metal ring with a glowing inner edge, three
+   * scanner arcs turning the other way, and a small faceted core. Coloured
+   * rather than white, so the glow keeps its shape instead of blooming out.
+   */
   private buildDrone(): THREE.Mesh {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(1.8, 0.22, 12, 48),
-      new THREE.MeshStandardMaterial({ color: '#0d1422', emissive: GC_COLOR, emissiveIntensity: 2, metalness: 0.5, roughness: 0.3 }),
-    );
+    const c = DRONE_COLOR.G1;
+    const hull = new THREE.MeshStandardMaterial({ color: '#0b1220', emissive: c, emissiveIntensity: 0.18, metalness: 0.85, roughness: 0.28 });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.26, 16, 64), hull);
     ring.rotation.x = Math.PI / 2;
-    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 1), new THREE.MeshBasicMaterial({ color: '#ffffff', wireframe: true }));
-    this.drone.add(ring, core, glowSprite(GC_COLOR, 6, 0.6));
+    const edgeMat = new THREE.MeshBasicMaterial({ color: c });
+    const edge = new THREE.Mesh(new THREE.TorusGeometry(1.62, 0.05, 8, 64), edgeMat);
+    edge.rotation.x = Math.PI / 2;
+    const scanMat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85 });
+    for (let i = 0; i < 3; i++) {
+      const arcMesh = new THREE.Mesh(new THREE.TorusGeometry(2.45, 0.045, 6, 24, Math.PI / 3.2), scanMat);
+      arcMesh.rotation.set(Math.PI / 2, 0, (i / 3) * Math.PI * 2);
+      this.scanners.add(arcMesh);
+    }
+    const coreMat = new THREE.MeshStandardMaterial({ color: '#0e1a2a', emissive: c, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.25, flatShading: true });
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.62, 0), coreMat);
+    this.spinCore = core;
+    const halo = glowSprite(c, 4.2, 0.28);
+    this.droneTinted.push(edgeMat, scanMat, coreMat, halo.material, hull);
+    this.drone.add(ring, edge, this.scanners, core, halo);
     this.drone.position.copy(LAYOUT.gcHome);
     this.reg.add(this.drone, 'gc', { anchor: false });
     this.reg.label('Garbage collector', new THREE.Vector3(0, 2.4, 0), { id: 'gc', parent: this.drone });
     return ring;
+  }
+
+  /** A soft cone of light under the drone, its scan beam. */
+  private buildCone(): THREE.Mesh {
+    const geo = new THREE.CylinderGeometry(1.4, 3.4, 1, 48, 1, true);
+    const cone = new THREE.Mesh(
+      geo,
+      new THREE.ShaderMaterial({
+        uniforms: { color: { value: DRONE_COLOR.G1.clone() }, opacity: { value: 0 }, time: { value: 0 } },
+        vertexShader: CONE_VERT,
+        fragmentShader: CONE_FRAG,
+        transparent: true,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    cone.visible = false;
+    this.drone.parent?.add(cone);
+    return cone;
   }
 
   private buildSweep(scene: THREE.Scene): THREE.Mesh {
@@ -283,3 +345,30 @@ export class HeapView implements Part {
     return plane;
   }
 }
+
+// The scan beam: brightest at its rim and near the drone, fading to nothing
+// on the heap, with faint scan lines running down it.
+const CONE_VERT = /* glsl */ `
+  varying vec2 vUv;
+  varying float vRim;
+  void main() {
+    vUv = uv;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vec3 n = normalize(normalMatrix * normal);
+    vRim = 1.0 - abs(dot(n, normalize(-mv.xyz)));
+    gl_Position = projectionMatrix * mv;
+  }`;
+
+const CONE_FRAG = /* glsl */ `
+  uniform vec3 color;
+  uniform float opacity;
+  uniform float time;
+  varying vec2 vUv;
+  varying float vRim;
+  void main() {
+    float down = vUv.y * vUv.y;
+    float rim = pow(clamp(vRim, 0.0, 1.0), 2.0);
+    float lines = 0.75 + 0.25 * smoothstep(0.6, 1.0, sin((vUv.y + time * 0.8) * 40.0));
+    float a = (0.05 + rim * 0.35) * down * lines * opacity;
+    gl_FragColor = vec4(color * 1.4, a);
+  }`;

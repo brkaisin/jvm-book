@@ -3,7 +3,7 @@
 // and a few exhibits (modules, AOT cache, direct memory, Valhalla, JFR).
 
 import * as THREE from 'three';
-import { C, Flow, arc, edged, glowSprite, textTexture, type Part, type Registry } from './fx';
+import { C, Flow, arc, edged, glowSprite, glowTexture, textTexture, type Part, type Registry } from './fx';
 import { LAYOUT, coreCenter, towerBase } from './layout';
 
 const THREAD_COUNT = LAYOUT.platformX.length + LAYOUT.carrierX.length + 1; // + the Code Lab's thread
@@ -16,6 +16,8 @@ export class Scenery implements Part {
   private readonly jfrLight: THREE.Sprite;
   private readonly vortex: THREE.Points;
   private readonly classfile: THREE.Mesh;
+  /** Native libraries floating over their dock, each with its own rhythm. */
+  private readonly libs: { obj: THREE.Object3D; y: number; phase: number }[] = [];
   private portalRing!: THREE.Mesh;
   private portalFlash = 0;
   private jfrFlash = 0;
@@ -43,6 +45,7 @@ export class Scenery implements Part {
     for (const m of this.shaders) m.uniforms.time.value = time;
     this.classfile.position.y = LAYOUT.classfile.y + Math.sin(time * 1.3) * 0.4;
     this.vortex.rotation.x -= dt * 1.4;
+    for (const l of this.libs) l.obj.position.y = l.y + Math.sin(time * 0.9 + l.phase) * 0.35;
 
     const { radius, y } = LAYOUT.jfrOrbit;
     const a = time * 0.07;
@@ -203,6 +206,12 @@ export class Scenery implements Part {
       padding: 48,
     });
     const cube = edged(new THREE.BoxGeometry(2.6, 2.6, 2.6), '#ffd166', { map: tex });
+    // Text on the top and bottom would be upside down half the time as the
+    // cube spins: they get a symmetric seal instead.
+    const side = cube.material as THREE.MeshStandardMaterial;
+    const cap = side.clone();
+    cap.map = sealTexture();
+    cube.material = [side, side, cap, cap, side, side];
     cube.position.copy(LAYOUT.classfile);
     this.spin(cube, 0.5);
     this.reg.add(cube, 'classfile');
@@ -321,13 +330,44 @@ export class Scenery implements Part {
       box.position.set(LAYOUT.nativeWorld.x + (i % 2) * 3, LAYOUT.nativeWorld.y + (i - 1.5) * 3, LAYOUT.nativeWorld.z + (i % 2 ? 3 : -3));
       box.rotation.y = -0.4;
       world.add(box);
+      this.libs.push({ obj: box, y: box.position.y, phase: i * 1.7 });
     });
     this.reg.add(world, 'native', { anchor: false });
+    this.buildNativeDock();
     this.flow(arc(LAYOUT.portal, LAYOUT.nativeWorld, 2), { color: C.native, count: 30, speed: 0.3, jitter: 3 });
     const toPortal = arc(LAYOUT.interpreter.clone().add(new THREE.Vector3(3, 0, 3)), LAYOUT.portal, 6);
     this.flow(toPortal, { color: '#ffc2d8', count: 30, speed: 0.15, size: 0.7, opacity: 0.6 });
     this.reg.flowLabel(toPortal, 'native calls', 'native', 0.6);
     return vortex;
+  }
+
+  /** The native world stands on its own dock outside the dome, tethered to the libraries above it. */
+  private buildNativeDock() {
+    const c = LAYOUT.nativeWorld.clone().add(new THREE.Vector3(1.5, 0, 0));
+    const dock = new THREE.Group();
+    const pad = edged(new THREE.CylinderGeometry(8.5, 9.6, 0.7, 6), '#ff6b9d', { body: '#160812', edgeOpacity: 0.75 });
+    pad.position.set(c.x, 0.35, c.z);
+    const inner = new THREE.Mesh(
+      new THREE.RingGeometry(5.2, 5.45, 6).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: C.native, transparent: true, opacity: 0.55 }),
+    );
+    inner.position.set(c.x, 0.72, c.z);
+    const glow = new THREE.Mesh(
+      new THREE.PlaneGeometry(22, 22).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.native, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    glow.position.set(c.x, 0.05, c.z);
+    dock.add(pad, inner, glow);
+    // A light tether from each library down to the dock.
+    const tetherMat = new THREE.LineDashedMaterial({ color: '#ff8fb8', dashSize: 0.5, gapSize: 0.45, transparent: true, opacity: 0.45 });
+    for (const l of this.libs) {
+      const p = l.obj.position;
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([p.clone().setY(0.75), p.clone().setY(p.y - 0.8)]), tetherMat);
+      line.computeLineDistances();
+      dock.add(line);
+    }
+    this.spin(inner, 0.15);
+    this.reg.add(dock, 'native', { anchor: false });
   }
 
   private buildDirectMemory() {
@@ -456,6 +496,34 @@ export class Scenery implements Part {
   }
 }
 
+/** The class file's top and bottom: a seal that reads the same from any side. */
+function sealTexture(): THREE.CanvasTexture {
+  const s = 256;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = s;
+  const g = cv.getContext('2d')!;
+  g.fillStyle = '#1a1406';
+  g.fillRect(0, 0, s, s);
+  g.strokeStyle = '#ffd166';
+  g.lineWidth = 6;
+  g.strokeRect(3, 3, s - 6, s - 6);
+  g.lineWidth = 4;
+  g.globalAlpha = 0.8;
+  g.strokeRect(58, 58, s - 116, s - 116);
+  g.beginPath();
+  g.arc(s / 2, s / 2, 30, 0, Math.PI * 2);
+  g.stroke();
+  g.fillStyle = '#ffd166';
+  for (const [x, y] of [[30, 30], [s - 30, 30], [30, s - 30], [s - 30, s - 30]]) {
+    g.beginPath();
+    g.arc(x, y, 7, 0, Math.PI * 2);
+    g.fill();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 // ------------------------------------------------------------- shaders
 
 const FLOOR_VERT = /* glsl */ `
@@ -484,9 +552,10 @@ const FLOOR_FRAG = /* glsl */ `
     float e = length((vW.xz - domeC) / domeR);
     float inside = 1.0 - smoothstep(0.96, 1.0, e);
     float rim = smoothstep(0.9, 1.0, e) * (1.0 - smoothstep(1.0, 1.04, e));
-    float fade = 1.0 - smoothstep(50.0, 165.0, r);
+    float fade = 1.0 - smoothstep(45.0, 140.0, r);
     float wave = pow(clamp(0.5 + 0.5 * sin(r * 0.12 - time * 1.2), 0.0, 1.0), 8.0) * inside;
-    float a = (major * 0.45 + minor * 0.12) * (0.35 + 0.65 * inside) + rim * 0.35 + wave * 0.08 + inside * 0.05;
+    // Outside the dome the grid is only a faint hint: the JVM is the subject.
+    float a = (major * 0.45 + minor * 0.12) * (0.12 + 0.88 * inside) + rim * 0.35 + wave * 0.08 + inside * 0.05;
     gl_FragColor = vec4(color * (0.6 + rim * 0.5 + wave), a * fade);
   }`;
 
@@ -494,11 +563,13 @@ const DOME_VERT = /* glsl */ `
   varying vec3 vN;
   varying vec3 vV;
   varying vec3 vP;
+  varying float vDist;
   void main() {
     vP = position;
     vN = normalize(normalMatrix * normal);
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vV = normalize(-mv.xyz);
+    vDist = length(mv.xyz);
     gl_Position = projectionMatrix * mv;
   }`;
 
@@ -508,6 +579,7 @@ const DOME_FRAG = /* glsl */ `
   varying vec3 vN;
   varying vec3 vV;
   varying vec3 vP;
+  varying float vDist;
   float line(float x, float w) {
     float d = abs(fract(x) - 0.5);
     return smoothstep(0.5 - w, 0.5, d);
@@ -520,5 +592,7 @@ const DOME_FRAG = /* glsl */ `
     float scan = 1.0 - smoothstep(0.0, 0.04, abs(vP.y - fract(time * 0.05)));
     float base = 1.0 - smoothstep(0.0, 0.05, vP.y);
     float a = f * 0.32 + g * 0.08 + scan * 0.2 + base * 0.12;
+    // Seen up close, the dome would draw its grid right across the view: let it melt away near the camera.
+    a *= smoothstep(12.0, 48.0, vDist);
     gl_FragColor = vec4(color * (0.6 + scan + base * 0.4), a);
   }`;

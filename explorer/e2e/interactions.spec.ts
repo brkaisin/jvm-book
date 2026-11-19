@@ -28,7 +28,8 @@ for (const [id, feed] of POKES) {
 test('the garbage collector collects when asked', async ({ page }) => {
   await enter(page, '#gc');
   await page.locator('#panel .act.primary').click();
-  await expect(page.locator('#banner')).toHaveClass('stw', { timeout: 5000 });
+  // The simulation runs at the frame rate, which software rendering keeps low.
+  await expect(page.locator('#banner')).toHaveClass('stw', { timeout: 10_000 });
 });
 
 test('clicking a thing in the world opens it and runs its action', async ({ page }) => {

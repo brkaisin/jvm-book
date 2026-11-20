@@ -28,6 +28,24 @@ interface ShownFrame {
   popped: boolean;
 }
 
+/** While one of these is open, every thread shows what it is running. */
+const THREAD_CONTEXT = ['threads', 'frame', 'pc', 'nativestack', 'carriers', 'vthreads', 'interpreter'] as const;
+
+/**
+ * Stack frames: lit, so their sides and tops shade differently and every slab
+ * reads as its own block, while their colour (per instance) still glows.
+ */
+function frameMaterial(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color: '#ffffff', metalness: 0.2, roughness: 0.55 });
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <emissivemap_fragment>',
+      '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vColor.rgb * 0.42;',
+    );
+  };
+  return m;
+}
+
 /** Frozen frames: a cold steel blue, dim enough not to bloom into white blobs. */
 const FROZEN = new THREE.Color('#8fc6e3').multiplyScalar(0.3);
 
@@ -57,7 +75,7 @@ export class ThreadsView implements Part {
     this.shown = threads.map(() => []);
 
     const capacity = threads.reduce((n, t) => n + capOf(t.kind), 0);
-    this.frames = new THREE.InstancedMesh(new THREE.BoxGeometry(2.6, 0.5, 2.6), new THREE.MeshBasicMaterial(), capacity);
+    this.frames = new THREE.InstancedMesh(new THREE.BoxGeometry(2.6, 0.46, 2.6), frameMaterial(), capacity);
     this.frames.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.frames.setColorAt(0, C.interp);
     this.frames.frustumCulled = false;
@@ -93,7 +111,9 @@ export class ThreadsView implements Part {
       frost.position.copy(base).setY(0.15);
       scene.add(frost);
       this.frost.push(frost);
-      this.pcLabels.push(this.reg.label('', base.clone().setY(0), { id: 'pc', minor: true, cls: 'pc' }));
+      this.pcLabels.push(
+        this.reg.label('', base.clone().setY(0), { id: 'pc', minor: true, cls: 'pc', near: 40, context: THREAD_CONTEXT }),
+      );
       if (lab) this.reg.label('Your code', base.clone().setY(4), { id: 'lab', cls: 'lab' });
       else
         this.reg.label(carrier ? `carrier ${t.name.slice(-1)}` : t.name, base.clone().setY(-0.6), {
@@ -183,7 +203,7 @@ export class ThreadsView implements Part {
       shown.slice(0, cap).forEach((f, depth) => {
         framePosition(ti, depth, this.p);
         this.p.y += (1 - f.s) * 1.2;
-        this.col.copy(TIER_COLOR[methods[f.method].tier]).multiplyScalar(depth === top ? 1.6 : 0.8);
+        this.col.copy(TIER_COLOR[methods[f.method].tier]).multiplyScalar(depth === top ? 1.35 : 0.75);
         this.col.lerp(FROZEN, this.freeze * 0.75);
         this.m.compose(this.p, this.q, this.s.set(f.s, Math.max(0.01, f.s), f.s));
         this.frames.setMatrixAt(n, this.m);

@@ -8,7 +8,8 @@ test('the intro invites you in, then the world comes alive', async ({ page }) =>
   await expect(page.locator('#intro h1')).toContainText('Enter the');
   await page.click('#enter');
   await expect(page.locator('#hud dd').first()).toContainText('regions');
-  await expect(page.locator('.lbl.major').first()).toBeVisible();
+  // Labels appear as the camera flies in from afar, which takes a while under software rendering.
+  await expect(page.locator('.lbl.major').first()).toBeVisible({ timeout: 15_000 });
   expect(errors).toEqual([]);
 });
 

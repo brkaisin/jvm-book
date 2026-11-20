@@ -82,6 +82,15 @@ kbd {
   pointer-events: none;
 }
 
+/* While something is being explained, the other labels step back too. */
+body.spot .lbl:not(.active):not(:hover) {
+  color: var(--muted);
+}
+
+body.spot .lbl:not(.minor, .title, .active):not(:hover) {
+  background: rgba(27, 26, 23, 0.6);
+}
+
 .vignette {
   position: fixed;
   inset: 0;
@@ -195,7 +204,8 @@ kbd {
   transition:
     transform 0.15s,
     background 0.15s,
-    opacity 0.35s ease;
+    opacity 0.35s ease,
+    color 0.6s ease;
   user-select: none;
 }
 

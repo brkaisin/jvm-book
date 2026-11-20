@@ -112,6 +112,12 @@ class App {
   private lastInput = performance.now();
   /** Measured label sizes; cleared now and then, as some labels change text. */
   private labelSize = new WeakMap<HTMLElement, { w: number; h: number }>();
+  /** Before bloom: guards against bad pixels, and darkens the world around what is being explained. */
+  private readonly sanitize = sanitizePass();
+  /** The focused hotspot's anchor, refreshed now and then (some follow moving things). */
+  private focus: Anchor | null = null;
+  /** Spotlight centre and radius on screen, smoothed. */
+  private readonly spot = { x: 0.5, y: 0.5, r: 0.3, amount: 0 };
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -147,7 +153,7 @@ class App {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.composer.addPass(sanitizePass());
+    this.composer.addPass(this.sanitize);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.6, 0.5, 0.82);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -256,6 +262,7 @@ class App {
     this.world.onFocus(id);
     const anchor = this.world.reg.anchors.get(id)?.();
     if (anchor) this.rig.flyTo(anchor);
+    this.focus = anchor ?? null;
     this.panel.show(id);
     for (const l of this.world.reg.labels) l.el.classList.toggle('active', l.id === id);
     history.replaceState(null, '', `#${id}`);
@@ -534,6 +541,7 @@ class App {
       this.panel.refresh();
       this.updateLabels();
       this.labelSize = new WeakMap();
+      this.focus = this.panel.current ? (this.world.reg.anchors.get(this.panel.current)?.() ?? null) : null;
     }
     if (this.lab.open && (this.labTimer -= dt) <= 0) {
       this.labTimer = 0.1;
@@ -543,6 +551,33 @@ class App {
     this.composer.render();
     this.labels.render(this.scene, this.camera);
     this.declutterLabels();
+    this.updateSpotlight(dt);
+  }
+
+  /** Follows the focused thing on screen with a soft pool of light, darkening the rest. */
+  private updateSpotlight(dt: number) {
+    const s = this.spot;
+    let on = !!this.panel.current && !this.lab.open && !!this.focus;
+    if (on && this.focus) {
+      const c = this.tmp.copy(this.focus.center);
+      const dist = Math.max(1, c.distanceTo(this.camera.position));
+      c.project(this.camera);
+      if (c.z > 1) on = false; // behind the camera
+      else {
+        // Its radius on screen, as a fraction of the screen height.
+        const r = this.focus.radius / (dist * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / 2;
+        const k = 1 - Math.exp(-8 * dt);
+        s.x += ((c.x + 1) / 2 - s.x) * k;
+        s.y += ((c.y + 1) / 2 - s.y) * k;
+        s.r += (THREE.MathUtils.clamp(r, 0.16, 0.42) - s.r) * k;
+      }
+    }
+    document.body.classList.toggle('spot', on);
+    s.amount = THREE.MathUtils.lerp(s.amount, on ? 1 : 0, 1 - Math.exp(-2.5 * dt));
+    const u = this.sanitize.uniforms;
+    u.spot.value.set(s.x, s.y, s.r);
+    u.spotAmount.value = s.amount;
+    u.aspect.value = innerWidth / innerHeight;
   }
 
   /** Once the visitor has been still for a while, slowly circle what the camera looks at. */
@@ -600,9 +635,11 @@ class App {
     for (const l of this.world.reg.labels) {
       l.obj.getWorldPosition(this.tmp);
       const d = this.tmp.distanceTo(cam);
-      const show = this.labelsOn && (l.minor ? d < MINOR_LABEL_DISTANCE : d < 260);
+      const inContext = !!this.panel.current && !!l.context?.includes(this.panel.current);
+      const near = l.near ?? MINOR_LABEL_DISTANCE;
+      const show = this.labelsOn && (inContext ? d < 260 : l.minor ? d < near : d < 260);
       l.obj.visible = show || l.id === this.panel.current || l.id === this.hovered;
-      l.el.style.opacity = l.minor ? String(Math.min(1, (MINOR_LABEL_DISTANCE - d) / 15 + 0.2)) : '';
+      l.el.style.opacity = l.minor && !inContext ? String(Math.min(1, (near - d) / 15 + 0.2)) : '';
     }
   }
 

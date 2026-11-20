@@ -204,6 +204,10 @@ export interface Label {
   id?: HotspotId;
   /** Minor labels only show up when the camera is close. */
   minor: boolean;
+  /** Closer than the usual minor distance: detail that only matters right in front of it. */
+  near?: number;
+  /** Shown (at any distance) while one of these hotspots is open. */
+  context?: readonly HotspotId[];
 }
 
 /** Maps a hit (instance id for instanced meshes) to a hotspot; `commit` is true on click, false on hover. */
@@ -267,7 +271,7 @@ export class Registry {
   label(
     text: string,
     pos: THREE.Vector3,
-    opts: { area?: AreaId; id?: HotspotId; minor?: boolean; cls?: string; parent?: THREE.Object3D } = {},
+    opts: { area?: AreaId; id?: HotspotId; minor?: boolean; cls?: string; parent?: THREE.Object3D; near?: number; context?: readonly HotspotId[] } = {},
   ): Label {
     const el = document.createElement('div');
     el.className = `lbl ${opts.minor ? 'minor' : 'major'} ${opts.cls ?? ''}`;
@@ -286,7 +290,7 @@ export class Registry {
     const obj = new CSS2DObject(el);
     obj.position.copy(pos);
     (opts.parent ?? this.scene).add(obj);
-    const l: Label = { obj, el, id: opts.id, minor: !!opts.minor };
+    const l: Label = { obj, el, id: opts.id, minor: !!opts.minor, near: opts.near, context: opts.context };
     this.labels.push(l);
     return l;
   }
